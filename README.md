@@ -10,6 +10,7 @@ Dünyadaki haberleri tek çatı altında toplayan, kişisel zevklerine göre fil
 - "Sana Özel" akışı, kategori sekmeleri, anlık arama (`/` kısayolu)
 - Görselli manşet ve kart ızgarası, iskelet yükleme, kademeli kart girişi
 - Kaydetme (sonra oku), okunan haberlerin soluklaşması, paylaşma
+- Uygulama içi okuyucu: haberin tamamı kaynağından çekilip temiz bir okuma görünümünde gösterilir (`/api/article`)
 - Aşağı sürükleyerek kapanan okuma paneli, ilk açılışta ilgi alanı seçimi
 - Açık/koyu tema (dairesel geçiş), hareket azaltma tercihine saygı
 - Tercihler ve kaydedilenler tarayıcıda saklanır
@@ -46,6 +47,7 @@ electron/
   main.mjs     Masaüstü uygulaması (Electron): sunucuyu içeride başlatır, pencereyi açar
 src/
   server.js    Express sunucusu ve API (/api/news, /api/meta)
+  article.js   Haberin tam metnini çıkarır (Readability) ve temizler
   feeds.js     RSS kaynaklarını çeker, birleştirir, 10 dk önbellekler
   sources.js   Haber kaynakları ve kategoriler (yeni kaynak buraya eklenir)
 public/

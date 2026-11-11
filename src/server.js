@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { getAllNews } from './feeds.js';
 import { sources, categories } from './sources.js';
+import { getArticle } from './article.js';
 
 const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -31,6 +32,16 @@ export function createApp() {
     if (q) items = items.filter((i) => `${i.title} ${i.summary}`.toLocaleLowerCase('tr').includes(q));
 
     res.json({ count: items.length, items: items.slice(0, limit) });
+  });
+  // Haberin tam metni: ?url=https://...
+  app.get('/api/article', async (req, res) => {
+    const url = String(req.query.url || '');
+    if (!/^https?:\/\//.test(url)) return res.status(400).json({ error: 'Geçersiz adres' });
+    try {
+      res.json(await getArticle(url));
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
   });
   return app;
 }

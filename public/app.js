@@ -182,8 +182,9 @@ function cardEl(item, size, idx) {
   el.style.setProperty('--cat', catColor(item.category));
   el.dataset.stagger = idx % 6;
   const kws = matchedKeywords(item);
+  const src = size === 'hero' ? item.image : item.image?.replace('/ace/standard/976/', '/ace/standard/480/');
   const media = item.image
-    ? `<div class="card-media"><img alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" src="${esc(item.image)}"></div>`
+    ? `<div class="card-media"><img alt="" loading="${size === 'hero' ? 'eager' : 'lazy'}" decoding="async" referrerpolicy="no-referrer" src="${esc(src)}"></div>`
     : `<div class="card-media fallback"><span>${esc(item.source)}</span></div>`;
   el.innerHTML = `
     ${media}
@@ -273,16 +274,18 @@ function openSheet(item, card) {
   const kws = matchedKeywords(item);
   $('sheet-body').innerHTML = `
     ${item.image ? `<img class="sheet-img" src="${esc(item.image)}" alt="" referrerpolicy="no-referrer">` : ''}
-    <div class="meta" style="--cat:${catColor(item.category)}"><span class="cat-pill">${esc(categories[item.category] || '')}</span><span class="dot"></span>${esc(item.source)}<span class="dot"></span>${timeAgo(item.date)}</div>
+    <div class="meta" style="--cat:${catColor(item.category)}"><span class="cat-pill">${esc(categories[item.category] || '')}</span><span class="dot"></span>${esc(item.source)}<span class="dot"></span>${timeAgo(item.date)}<span class="dot"></span><span id="read-time">okunuyor…</span></div>
     <h2>${esc(item.title)}</h2>
-    <p>${esc(item.summary || 'Bu haberin özeti kaynakta yer almıyor. Tamamını kaynağında okuyabilirsin.')}</p>
+    ${kws.length ? `<p class="hint">✦ Takip ettiğin konu: ${esc(kws.join(', '))}</p>` : ''}
     <div class="sheet-actions">
-      <a class="primary" href="${esc(item.link)}" target="_blank" rel="noopener">Haberin tamamını oku
-        <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
       <button class="secondary" id="sheet-save">${saved.has(item.link) ? 'Kaydedildi ✓' : 'Kaydet'}</button>
       <button class="secondary" id="sheet-share">Paylaş</button>
+      <button class="secondary" id="sheet-original">Orijinal sayfa</button>
     </div>
-    ${kws.length ? `<p class="hint">✦ Takip ettiğin konu: ${esc(kws.join(', '))}</p>` : ''}`;
+    <div class="article" id="article">
+      ${item.summary ? `<p class="lede">${esc(item.summary)}</p>` : ''}
+      <div class="article-loading">${'<div class="sk-line shimmer"></div>'.repeat(6)}</div>
+    </div>`;
   $('sheet-save').onclick = (e) => {
     toggleSave(item, null);
     e.currentTarget.textContent = saved.has(item.link) ? 'Kaydedildi ✓' : 'Kaydet';
@@ -294,11 +297,46 @@ function openSheet(item, card) {
       else { await navigator.clipboard.writeText(item.link); toast('Bağlantı kopyalandı'); }
     } catch {}
   };
+  $('sheet-original').onclick = () => openOriginal(item.link);
   $('sheet-body').scrollTop = 0;
   $('sheet').style.transform = '';
   $('sheet').classList.add('open');
   $('sheet-backdrop').classList.add('open');
   document.body.classList.add('locked');
+  loadArticle(item);
+}
+
+// Orijinal sayfa: masaüstü uygulamasında uygulamanın kendi penceresinde açılır
+function openOriginal(url) {
+  window.open(url, '_blank', 'noopener');
+}
+
+async function loadArticle(item) {
+  const box = $('article');
+  try {
+    const res = await fetch('/api/article?url=' + encodeURIComponent(item.link));
+    const data = await res.json();
+    if (sheetItem !== item) return; // bu arada başka habere geçildi
+    if (!res.ok) throw new Error(data.error);
+    $('read-time').textContent = `${data.minutes} dk okuma`;
+    box.innerHTML = data.content;
+    box.querySelectorAll('img').forEach((img) => {
+      img.loading = 'lazy';
+      img.referrerPolicy = 'no-referrer';
+      // Manşet görselini tekrar gösterme, kırık görselleri gizle
+      if (item.image && img.src.split('?')[0] === item.image.split('?')[0]) img.remove();
+      img.onerror = () => img.remove();
+    });
+    box.querySelectorAll('a').forEach((a) => { a.target = '_blank'; a.rel = 'noopener'; });
+    box.classList.add('loaded');
+  } catch {
+    if (sheetItem !== item) return;
+    $('read-time').textContent = 'özet';
+    box.querySelector('.article-loading')?.remove();
+    box.insertAdjacentHTML('beforeend', `<div class="article-fail">Bu haberin tam metni buraya alınamadı.
+      <button class="primary" id="fail-original">Orijinal sayfada oku</button></div>`);
+    $('fail-original').onclick = () => openOriginal(item.link);
+  }
 }
 function closeSheet() {
   $('sheet').classList.remove('open');
@@ -483,7 +521,7 @@ function bindEvents() {
       const y = scrollY;
       const max = document.documentElement.scrollHeight - innerHeight;
       $('progress').style.transform = `scaleX(${max > 0 ? y / max : 0})`;
-      $('topbar').classList.toggle('scrolled', y > 8);
+      $('chrome').classList.toggle('scrolled', y > 8);
       $('to-top').classList.toggle('show', y > 900);
       ticking = false;
     });

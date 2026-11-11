@@ -1,5 +1,5 @@
 // Haber masaüstü uygulaması: haber sunucusunu uygulamanın içinde başlatır ve kendi penceresinde açar.
-import { app, BrowserWindow, shell, nativeTheme, Menu } from 'electron';
+import { app, BrowserWindow, nativeTheme, Menu } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from '../src/server.js';
@@ -28,18 +28,39 @@ async function createWindow() {
     },
   });
 
-  // Haber bağlantıları uygulamanın içinde değil, varsayılan tarayıcıda açılır
+  // Haber bağlantıları uygulamadan çıkmadan, uygulamanın kendi okuma penceresinde açılır
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (!/^https?:/.test(url)) return { action: 'deny' };
+    openReader(url);
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', (e, url) => {
-    if (!url.startsWith(baseUrl)) { e.preventDefault(); shell.openExternal(url); }
+    if (!url.startsWith(baseUrl)) { e.preventDefault(); openReader(url); }
   });
 
   win.once('ready-to-show', () => win.show());
   win.on('closed', () => { win = null; });
   await win.loadURL(baseUrl);
+}
+
+// Orijinal haber sayfası için uygulama içi pencere (tarayıcı açılmaz)
+function openReader(url) {
+  const [x, y] = win ? win.getPosition() : [undefined, undefined];
+  const reader = new BrowserWindow({
+    width: 1100,
+    height: 820,
+    x: x !== undefined ? x + 40 : undefined,
+    y: y !== undefined ? y + 40 : undefined,
+    title: 'Haber',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0e0e10' : '#ffffff',
+    webPreferences: { sandbox: true, contextIsolation: true },
+  });
+  // Bu pencerede açılmak istenen yeni sekmeler de aynı pencerede açılır
+  reader.webContents.setWindowOpenHandler(({ url: next }) => {
+    if (/^https?:/.test(next)) reader.loadURL(next);
+    return { action: 'deny' };
+  });
+  reader.loadURL(url);
 }
 
 app.setName('Haber');
