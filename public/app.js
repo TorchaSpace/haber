@@ -28,6 +28,34 @@ const savePrefs = () => store.set('haber.prefs', prefs);
 const saveSaved = () => store.set('haber.saved', [...saved.values()].map(({ _text, ...rest }) => rest));
 const saveRead = () => store.set('haber.read', [...readSet].slice(-500));
 
+// Öğrenen akış: okuduğun, kaydettiğin, geçtiğin haberlerden etiket/kategori/kaynak eğilimi çıkarılır.
+// Her gün %3 azalır; böylece eski ilgiler zamanla söner, yenileri öne çıkar.
+const aff = { tags: {}, cats: {}, srcs: {}, at: Date.now(), ...store.get('haber.aff', {}) };
+(function decay() {
+  const f = Math.pow(0.97, (Date.now() - aff.at) / 864e5);
+  for (const m of [aff.tags, aff.cats, aff.srcs]) for (const k in m) { m[k] *= f; if (Math.abs(m[k]) < 0.05) delete m[k]; }
+  aff.at = Date.now();
+})();
+const saveAff = () => store.set('haber.aff', aff);
+const clamp = (x) => Math.max(-10, Math.min(20, x));
+function learn(item, w) {
+  for (const t of item.tags || []) aff.tags[t] = clamp((aff.tags[t] || 0) + w);
+  aff.cats[item.category] = clamp((aff.cats[item.category] || 0) + w * 0.5);
+  aff.srcs[item.sourceId] = clamp((aff.srcs[item.sourceId] || 0) + w * 0.3);
+  saveAff();
+}
+// Okuma günlüğü (haftalık özet için)
+const readLog = store.get('haber.log', []);
+function logRead(item, dwell) {
+  readLog.push({ t: Date.now(), link: item.link, tags: item.tags || [], cat: item.category, src: item.source, countries: item.countries || [], dwell: Math.round(dwell) });
+  while (readLog.length > 3000) readLog.shift();
+  store.set('haber.log', readLog);
+}
+// Takip edilen gelişen hikayeler
+const followed = store.get('haber.stories', []);
+const saveFollowed = () => store.set('haber.stories', followed);
+const slim = (i) => ({ link: i.link, title: i.title, source: i.source, date: i.date, lang: i.lang, image: i.image, summary: i.summary, category: i.category, sourceId: i.sourceId, tags: i.tags, storyId: i.storyId });
+
 // ---------- Uygulama durumu ----------
 let categories = {};
 let tagGroups = {};
@@ -40,6 +68,9 @@ let activeTab = 'foryou';
 let query = '';
 let activeTags = [];
 let timeRange = 'all';
+let storyMap = new Map(); // hikaye kimliği -> o olayı yazan tüm haberler
+let activeCountry = null;
+let countryMap = {};
 
 // ---------- Yardımcılar ----------
 function timeAgo(date) {
@@ -74,6 +105,7 @@ function tabList() {
     { id: 'foryou', label: 'Sana Özel' },
     { id: 'all', label: 'Tümü' },
     ...Object.entries(categories).map(([id, label]) => ({ id, label })),
+    { id: 'stories', label: '🔔 Hikayelerim', count: unseenCount() },
     { id: 'saved', label: 'Kaydedilenler', count: saved.size },
   ];
 }
@@ -141,7 +173,8 @@ function renderTagStrip(baseItems) {
   $('tag-strip').innerHTML =
     activeTags.map((t) => `<button class="tag-chip on" data-t="${t}">${esc(tagLabel(t))}<span class="n">${counts.get(t) || 0}</span><span class="x">✕</span></button>`).join('') +
     top.map(([t, n]) => `<button class="tag-chip${prefs.followTags.includes(t) ? ' followed' : ''}" data-t="${t}">${esc(tagLabel(t))}<span class="n">${n}</span></button>`).join('');
-  $('clear-filters').hidden = !(activeTags.length || timeRange !== 'all' || query);
+  if (activeCountry) $('tag-strip').insertAdjacentHTML('afterbegin', `<button class="tag-chip on" data-country="1">📍 ${esc(countryMap[activeCountry] || '')}<span class="x">✕</span></button>`);
+  $('clear-filters').hidden = !(activeTags.length || timeRange !== 'all' || query || activeCountry);
 }
 
 function toggleActiveTag(t) {
@@ -159,6 +192,7 @@ function renderGreeting() {
   const titles = { foryou: hello, all: 'Tüm haberler', saved: 'Kaydettiklerin' };
   let title = titles[activeTab] || categories[activeTab] || hello;
   if (activeTags.length === 1) title = tagLabel(activeTags[0]);
+  if (activeCountry) title = `📍 ${countryMap[activeCountry] || ''}`;
   $('greeting-title').textContent = title;
   let sub;
   if (query) sub = `"${query}" için ${view.length} sonuç`;
@@ -182,10 +216,34 @@ function score(item) {
   s += matchedKeywords(item).length * 10;
   s += item.tags.filter((t) => prefs.followTags.includes(t)).length * 12;
   if (prefs.categories.includes(item.category)) s += 3;
+  for (const t of item.tags) s += Math.min(aff.tags[t] || 0, 8) * 1.5;
+  s += (aff.cats[item.category] || 0) + (aff.srcs[item.sourceId] || 0) * 0.5;
+  if (item.storySize > 1) s += Math.log2(item.storySize) * 2.5;
   return s;
 }
 
+// "Bunu neden görüyorum?" — haberin akışta olma sebepleri, en güçlüsü başta
+function reasons(item) {
+  const r = [];
+  const fol = item.tags.filter((t) => prefs.followTags.includes(t));
+  if (fol.length) r.push(`${tagMap[fol[0]]?.label || fol[0]} konusunu takip ediyorsun`);
+  const kws = matchedKeywords(item);
+  if (kws.length) r.push(`"${kws[0]}" kelimesini takip ediyorsun`);
+  const learned = item.tags.filter((t) => (aff.tags[t] || 0) >= 1.5 && !fol.includes(t)).sort((a, b) => aff.tags[b] - aff.tags[a]);
+  if (learned.length) r.push(`${tagMap[learned[0]]?.label || learned[0]} haberlerini sık okuyorsun`);
+  if (item.storySize >= 3) r.push(`Çok konuşulan: ${item.storySize} kaynak yazdı`);
+  if ((aff.srcs[item.sourceId] || 0) >= 1.5) r.push(`${item.source} sık okuduğun bir kaynak`);
+  if (prefs.categories.includes(item.category)) r.push(`${categories[item.category]} ilgi alanlarında`);
+  if (Date.now() - new Date(item.date || 0) < 3.6e6) r.push('Son bir saatte yayımlandı');
+  return r;
+}
+
+function unseenCount() {
+  return followed.reduce((n, st) => n + st.items.filter((i) => new Date(i.date || 0) > st.lastSeen).length, 0);
+}
+
 function buildView() {
+  if (activeTab === 'stories') { renderStoriesTab(); return; }
   let items = activeTab === 'saved' ? [...saved.values()].reverse() : allNews;
   if (activeTab !== 'saved') {
     items = items.filter((i) => !prefs.muteSources.includes(i.sourceId) && !i.tags.some((t) => prefs.muteTags.includes(t)));
@@ -201,6 +259,7 @@ function buildView() {
   }
 
   items = items.filter(inTime);
+  if (activeCountry) items = items.filter((i) => (i.countries || []).includes(activeCountry));
   if (query) {
     const q = lower(query);
     items = items.filter((i) => i._text.includes(q) || lower(i.source).includes(q) || i.tags.some((t) => lower(tagMap[t]?.label || '').includes(q)));
@@ -212,6 +271,11 @@ function buildView() {
 
   if (activeTab === 'foryou' && prefs.sort === 'smart') {
     items = items.map((i) => [i, score(i)]).sort((a, b) => b[1] - a[1]).map((x) => x[0]);
+  }
+  // Aynı olayı yazan haberler tek kartta: en üstteki temsil eder, gerisi "farklı gözler"de
+  if (activeTab !== 'saved') {
+    const seenStory = new Set();
+    items = items.filter((i) => !i.storyId || i.storySize < 2 || (!seenStory.has(i.storyId) && seenStory.add(i.storyId)));
   }
 
   view = items;
@@ -255,12 +319,21 @@ function renderMore() {
   }
 }
 
+// "7 kaynak · TR + EN" rozeti, kaynakların baş harfleriyle
+function storyBadge(item) {
+  if (!(item.storySize > 1)) return '';
+  const members = storyMap.get(item.storyId) || [];
+  const av = members.slice(0, 4).map((m) => `<i style="--cat:${catColor(m.category)}">${esc(m.source[0])}</i>`).join('');
+  const langs = (item.storyLangs || []).length > 1 ? ' · 🇹🇷 + 🌍' : '';
+  return `<span class="story-badge"><span class="avatars">${av}</span>${item.storySize} kaynak yazdı${langs}</span>`;
+}
+
 function cardEl(item, size, idx) {
   const el = document.createElement('article');
   el.className = `card ${size}` + (readSet.has(item.link) ? ' read' : '');
   el.style.setProperty('--cat', catColor(item.category));
   el.dataset.stagger = idx % 6;
-  const kws = matchedKeywords(item);
+  const why = activeTab === 'foryou' ? reasons(item)[0] : '';
   const src = size === 'hero' ? item.image : item.image?.replace('/ace/standard/976/', '/ace/standard/480/');
   const media = item.image
     ? `<div class="card-media"><img alt="" loading="${size === 'hero' ? 'eager' : 'lazy'}" decoding="async" referrerpolicy="no-referrer" src="${esc(src)}"></div>`
@@ -276,7 +349,8 @@ function cardEl(item, size, idx) {
       <div class="meta"><span class="cat-pill">${esc(categories[item.category] || item.category)}</span><span class="dot"></span>${esc(item.source)}<span class="dot"></span>${timeAgo(item.date)}</div>
       <h3>${esc(item.title)}</h3>
       ${item.summary ? `<p>${esc(item.summary)}</p>` : ''}
-      ${kws.length && activeTab !== 'saved' ? `<span class="match-tag">✦ ${esc(kws.join(', '))}</span>` : ''}
+      ${why ? `<span class="match-tag">✦ ${esc(why)}</span>` : ''}
+      ${storyBadge(item)}
       ${tags ? `<div class="card-tags">${tags}</div>` : ''}
     </div>`;
 
@@ -326,6 +400,7 @@ function toggleSave(item, btn) {
     toast('Kaydedilenlerden çıkarıldı');
   } else {
     saved.set(item.link, item);
+    learn(item, 2);
     if (btn) { btn.classList.add('on'); burst(btn); }
     toast('Kaydedildi 🔖');
   }
@@ -350,8 +425,33 @@ function burst(btn) {
 
 // ---------- Okuma paneli ----------
 let sheetItem = null;
+let sheetOpenedAt = 0;
+// Panel kapanırken (ya da başka habere geçerken) okuma süresine göre öğren
+function finishReading() {
+  if (!sheetItem) return;
+  const dwell = (Date.now() - sheetOpenedAt) / 1000;
+  learn(sheetItem, dwell > 20 ? 2.5 : dwell > 6 ? 1 : 0.3);
+  logRead(sheetItem, dwell);
+}
+
+function otherEyes(item) {
+  const members = (storyMap.get(item.storyId) || []).filter((m) => m.link !== item.link);
+  if (!members.length) return '';
+  const row = (m) => `<button class="eye-row" data-link="${esc(m.link)}"><span class="eye-src" style="--cat:${catColor(m.category)}">${esc(m.source)}</span><span class="eye-title">${esc(m.title)}</span><span class="eye-time">${timeAgo(m.date)}</span></button>`;
+  const all = [item, ...members];
+  const first = all.reduce((a, b) => (new Date(a.date || 0) < new Date(b.date || 0) ? a : b));
+  const tr = members.filter((m) => m.lang === 'tr'), world = members.filter((m) => m.lang !== 'tr');
+  return `<section class="eyes">
+    <h4>👀 Farklı gözler <span>${all.length} kaynak · ilk ${esc(first.source)} yazdı, ${timeAgo(first.date)}</span></h4>
+    ${tr.length ? `<div class="eye-group"><h5>🇹🇷 Türk basını</h5>${tr.map(row).join('')}</div>` : ''}
+    ${world.length ? `<div class="eye-group"><h5>🌍 Dünya basını</h5>${world.map(row).join('')}</div>` : ''}
+  </section>`;
+}
+
 function openSheet(item, card) {
+  finishReading();
   sheetItem = item;
+  sheetOpenedAt = Date.now();
   haptic();
   readSet.add(item.link); saveRead();
   setTimeout(() => card?.classList.add('read'), 400);
@@ -364,10 +464,17 @@ function openSheet(item, card) {
     ${tags ? `<div class="card-tags sheet-tags">${tags}<span class="hint">Takip etmek için etikete dokun</span></div>` : ''}
     ${kws.length ? `<p class="hint">✦ Takip ettiğin kelime: ${esc(kws.join(', '))}</p>` : ''}
     <div class="sheet-actions">
+      <button class="secondary${followed.some((f) => f.id === (item.storyId || item.link)) ? ' on' : ''}" id="sheet-follow">${followed.some((f) => f.id === (item.storyId || item.link)) ? '🔔 Takip ediliyor' : '🔔 Hikayeyi takip et'}</button>
       <button class="secondary" id="sheet-save">${saved.has(item.link) ? 'Kaydedildi ✓' : 'Kaydet'}</button>
       <button class="secondary" id="sheet-share">Paylaş</button>
       <button class="secondary" id="sheet-original">Orijinal sayfa</button>
     </div>
+    ${otherEyes(item)}
+    <details class="why">
+      <summary>Bunu neden görüyorum?</summary>
+      <ul>${(reasons(item).length ? reasons(item) : ['Genel akıştan, en yeni haberler arasında']).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+      <div class="why-actions"><button class="secondary" id="more-like">👍 Daha fazla göster</button><button class="secondary" id="less-like">👎 Daha az göster</button></div>
+    </details>
     <div class="article" id="article">
       ${item.summary ? `<p class="lede">${esc(item.summary)}</p>` : ''}
       <div class="article-loading">${'<div class="sk-line shimmer"></div>'.repeat(6)}</div>
@@ -394,6 +501,17 @@ function openSheet(item, card) {
     } catch {}
   };
   $('sheet-original').onclick = () => openOriginal(item.link);
+  $('sheet-follow').onclick = (e) => {
+    const on = toggleFollow(item);
+    e.currentTarget.classList.toggle('on', on);
+    e.currentTarget.textContent = on ? '🔔 Takip ediliyor' : '🔔 Hikayeyi takip et';
+  };
+  $('more-like').onclick = () => { learn(item, 3); haptic(); toast('Bunun gibi haberleri daha çok göreceksin'); };
+  $('less-like').onclick = () => { learn(item, -4); haptic(); toast('Bunun gibi haberleri daha az göreceksin'); };
+  $('sheet-body').querySelectorAll('.eye-row').forEach((b) => { b.onclick = () => {
+    const m = allNews.find((x) => x.link === b.dataset.link);
+    if (m) openSheet(m, null);
+  }; });
   $('sheet-body').scrollTop = 0;
   $('sheet').style.transform = '';
   $('sheet').classList.add('open');
@@ -437,6 +555,7 @@ async function loadArticle(item) {
 
 function closeSheet() {
   if (!$('sheet').classList.contains('open')) return;
+  finishReading();
   $('sheet').classList.remove('open');
   $('sheet').style.transform = '';
   $('sheet-backdrop').classList.remove('open');
@@ -444,6 +563,89 @@ function closeSheet() {
   sheetItem = null;
   buildViewIfDirty();
 }
+
+// ---------- Gelişen hikayeleri takip ----------
+function toggleFollow(item) {
+  haptic(12);
+  const i = followed.findIndex((f) => f.id === (item.storyId || item.link));
+  if (i >= 0) { followed.splice(i, 1); saveFollowed(); toast('Hikaye takibi bırakıldı'); renderTabs(); return false; }
+  const members = storyMap.get(item.storyId) || [item];
+  followed.unshift({ id: item.storyId || item.link, title: item.title, keys: item.keys || [], created: Date.now(), lastSeen: Date.now(), items: members.map(slim) });
+  saveFollowed();
+  toast('🔔 Takipte: yeni gelişmeler burada ve bildirimle gelecek');
+  try { if (window.Notification && Notification.permission === 'default') Notification.requestPermission(); } catch {}
+  renderTabs();
+  return true;
+}
+
+// Yeni gelen haberleri takip edilen hikayelerle eşleştir (aynı hikaye ya da en az 5 ortak anahtar kelime)
+function updateFollowed(notify) {
+  const fresh = [];
+  for (const st of followed) {
+    const have = new Set(st.items.map((i) => i.link));
+    const keys = new Set(st.keys.filter((k) => !k.startsWith('#t')));
+    for (const i of allNews) {
+      if (have.has(i.link)) continue;
+      if (new Date(i.date || 0) < st.created - 72 * 3600e3) continue;
+      const shared = (i.keys || []).filter((k) => keys.has(k)).length;
+      if (i.storyId === st.id || shared >= 5) {
+        st.items.push(slim(i)); have.add(i.link);
+        if (new Date(i.date || 0) > st.lastSeen) fresh.push([st, i]);
+      }
+    }
+    st.items.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  }
+  saveFollowed();
+  if (notify && fresh.length) {
+    const [st, i] = fresh[0];
+    try { new Notification(`Gelişme: ${st.title.slice(0, 60)}`, { body: `${i.source}: ${i.title}`, silent: false }).onclick = () => { window.focus?.(); openByLink(i.link); }; } catch {}
+    toast(`🔔 Takip ettiğin hikayede ${fresh.length} yeni gelişme`);
+  }
+  return fresh.length;
+}
+
+function renderStoriesTab() {
+  $('feed').innerHTML = '';
+  renderTagStrip([]);
+  $('greeting-title').textContent = 'Hikayelerim';
+  $('greeting-sub').textContent = followed.length ? `${followed.length} gelişen hikayeyi takip ediyorsun` : '';
+  renderSortBtn();
+  if (!followed.length) {
+    $('feed').innerHTML = `<div class="status"><span class="big-emoji">🔔</span>Henüz bir hikaye takip etmiyorsun. Bir haberi açıp <b>Hikayeyi takip et</b>'e dokun; yeni gelişmeler burada zaman çizelgesi olarak birikir ve bildirim gelir.</div>`;
+    return;
+  }
+  for (const st of followed) {
+    const el = document.createElement('article');
+    el.className = 'card story-card in';
+    const nNew = st.items.filter((i) => new Date(i.date || 0) > st.lastSeen).length;
+    el.innerHTML = `
+      <div class="card-body">
+        <div class="meta"><span class="cat-pill">Gelişen hikaye</span><span class="dot"></span>${st.items.length} haber<span class="dot"></span>son: ${timeAgo(st.items[0]?.date)}${nNew ? `<span class="new-pill">${nNew} yeni</span>` : ''}</div>
+        <h3>${esc(st.title)}</h3>
+        <ol class="timeline">${st.items.slice(0, 12).map((i) => `
+          <li class="${new Date(i.date || 0) > st.lastSeen ? 'is-new' : ''}" data-link="${esc(i.link)}">
+            <span class="tl-time">${timeAgo(i.date)}</span>
+            <span class="tl-src">${esc(i.source)}</span>
+            <span class="tl-title">${esc(i.title)}</span>
+          </li>`).join('')}</ol>
+        <div class="card-tags"><button class="card-tag unfollow">Takibi bırak</button></div>
+      </div>`;
+    el.querySelectorAll('.timeline li').forEach((li) => li.onclick = () => openByLink(li.dataset.link, st));
+    el.querySelector('.unfollow').onclick = () => { followed.splice(followed.indexOf(st), 1); saveFollowed(); renderTabs(); renderStoriesTab(); };
+    $('feed').appendChild(el);
+  }
+  // Görüldü olarak işaretle (yeni vurgusu bir sonraki açılışta kalkar)
+  setTimeout(() => { for (const st of followed) st.lastSeen = Date.now(); saveFollowed(); const t = $('tabs').querySelector('.tab[data-id="stories"]'); if (t) { t.innerHTML = '🔔 Hikayelerim'; moveIndicator(); } }, 1500);
+}
+
+// Menü çubuğu ve bildirimlerden haber açmak için
+function openByLink(link, story) {
+  const it = allNews.find((i) => i.link === link) || story?.items.find((i) => i.link === link) || saved.get(link);
+  if (!it) return;
+  it._text ||= lower(`${it.title} ${it.summary || ''}`); it.tags ||= [];
+  openSheet(it, null);
+}
+window.openByLink = openByLink;
 
 // Okurken etiket takibi değiştiyse akışı panel kapanınca güncelle
 let lastFollow = '';
@@ -507,6 +709,17 @@ function renderPrefs() {
     }));
   }
   renderKeywords();
+}
+
+// Uygulamanın senin hakkında öğrendikleri: en güçlü eğilimler çubuk grafik olarak
+function renderLearned() {
+  const box = $('learned');
+  const top = Object.entries(aff.tags).filter(([, v]) => v > 0.5).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (!top.length) { box.innerHTML = '<p class="hint">Haber okudukça burası dolacak. Neyi açtığını, ne kadar okuduğunu ve neyi kaydettiğini izleyip akışını buna göre ayarlıyorum.</p>'; return; }
+  const max = top[0][1];
+  box.innerHTML = top.map(([t, v]) => `<div class="bar-row"><span>${esc(tagLabel(t))}</span><i style="--w:${Math.round((v / max) * 100)}%"></i></div>`).join('') +
+    '<button class="clear-btn" id="reset-learned">Öğrendiklerini sıfırla</button>';
+  $('reset-learned').onclick = () => { aff.tags = {}; aff.cats = {}; aff.srcs = {}; saveAff(); renderLearned(); buildView(); toast('Sıfırlandı, sıfırdan öğreneceğim'); };
 }
 
 function renderKeywords() {
@@ -596,7 +809,7 @@ function renderSources() {
   }
 }
 
-function openDrawer() { renderTopics(); renderSources(); $('drawer').classList.add('open'); $('drawer-backdrop').classList.add('open'); document.body.classList.add('locked'); }
+function openDrawer() { renderTopics(); renderSources(); renderLearned(); $('drawer').classList.add('open'); $('drawer-backdrop').classList.add('open'); document.body.classList.add('locked'); }
 function closeDrawer() { $('drawer').classList.remove('open'); $('drawer-backdrop').classList.remove('open'); document.body.classList.remove('locked'); }
 
 // ---------- İlk açılış (2 adım) ----------
@@ -651,11 +864,32 @@ async function loadNews(force = false) {
   for (const s of saved.values()) { s._text ||= lower(`${s.title} ${s.summary}`); s.tags ||= []; }
   const before = new Set(allNews.map((i) => i.link));
   const fresh = allNews.length ? items.filter((i) => !before.has(i.link)).length : 0;
-  allNews = items;
-  lastFollow = prefs.followTags.join();
+  applyNews(items);
   buildView();
   return fresh;
 }
+
+function applyNews(items) {
+  allNews = items;
+  storyMap = new Map();
+  for (const i of items) if (i.storySize > 1) (storyMap.get(i.storyId) || storyMap.set(i.storyId, []).get(i.storyId)).push(i);
+  lastFollow = prefs.followTags.join();
+}
+
+// Arka planda 10 dakikada bir yenile; akışı bozmadan üstte "yeni haber" düğmesi göster
+setInterval(async () => {
+  try {
+    const res = await fetch('/api/news?limit=3000&refresh=1');
+    const { items } = await res.json();
+    for (const i of items) { i._text = lower(`${i.title} ${i.summary}`); i.tags ||= []; }
+    const before = new Set(allNews.map((i) => i.link));
+    const n = items.filter((i) => !before.has(i.link)).length;
+    applyNews(items);
+    updateFollowed(true);
+    renderTabs();
+    if (n) { $('new-pill').textContent = `↑ ${n} yeni haber`; $('new-pill').classList.add('show'); }
+  } catch {}
+}, 10 * 60 * 1000);
 
 // ---------- Olaylar ----------
 function bindEvents() {
@@ -684,10 +918,11 @@ function bindEvents() {
   };
   $('tag-strip').addEventListener('click', (e) => {
     const b = e.target.closest('.tag-chip');
+    if (b?.dataset.country) { activeCountry = null; haptic(); buildView(); return; }
     if (b) toggleActiveTag(b.dataset.t);
   });
   $('clear-filters').onclick = () => {
-    activeTags = []; timeRange = 'all'; query = ''; $('search').value = '';
+    activeTags = []; timeRange = 'all'; query = ''; activeCountry = null; $('search').value = '';
     $('time-seg').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x.dataset.v === 'all'));
     moveSegThumb(); haptic(); buildView();
   };
@@ -739,6 +974,7 @@ function bindEvents() {
   });
 
   $('to-top').onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+  $('new-pill').onclick = () => { $('new-pill').classList.remove('show'); window.scrollTo({ top: 0, behavior: 'instant' }); buildView(); };
 
   // Kaydırma: tek rAF içinde güncelle; kaydırırken üzerine gelme efektlerini kapat (takılmayı önler)
   let ticking = false, scrollTimer;
@@ -768,6 +1004,7 @@ async function init() {
   try {
     const meta = await fetch('/api/meta').then((r) => r.json());
     categories = meta.categories;
+    countryMap = Object.fromEntries((meta.countries || []).map((c) => [c.id, c.name]));
     tagGroups = meta.tagGroups || {};
     tagMap = Object.fromEntries((meta.tags || []).map((t) => [t.id, t]));
     sources = meta.sources || [];
@@ -776,6 +1013,7 @@ async function init() {
     moveSegThumb();
     if (!prefs.onboarded) showOnboarding();
     await loadNews();
+    if (updateFollowed(true)) renderTabs();
   } catch (err) {
     console.error(err);
     $('feed').innerHTML = '<div class="status"><span class="big-emoji">📡</span>Haberler alınamadı. Sunucu çalışıyor mu?</div>';

@@ -536,3 +536,62 @@ button:active, .chip:active, .tab:active { transform: scale(.92); }
 /* İlk açılış 2. adım */
 #onboard-tags { justify-content: center; margin-bottom: 30px; max-height: 46vh; overflow-y: auto; }
 .onboard-card[hidden] { display: none; }
+
+/* ---------- Farklı gözler, sebepler, hikaye takibi ---------- */
+.story-badge { display: inline-flex; align-items: center; gap: 8px; font-size: .78rem; font-weight: 600; color: var(--muted); }
+.avatars { display: inline-flex; }
+.avatars i {
+  width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-style: normal;
+  font-size: .62rem; font-weight: 700; color: #fff; background: var(--cat); border: 2px solid var(--bg-elev); margin-left: -6px;
+}
+.avatars i:first-child { margin-left: 0; }
+.card.hero .story-badge { color: rgba(255,255,255,.85); }
+.card.hero .avatars i { border-color: rgba(0,0,0,.3); }
+
+.eyes { margin: 18px 0 6px; padding: 16px; border-radius: 18px; background: var(--surface); }
+.eyes h4 { margin: 0 0 10px; font-size: 1rem; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.eyes h4 span { font-size: .8rem; font-weight: 500; color: var(--muted); }
+.eye-group h5 { margin: 12px 0 6px; font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.eye-row {
+  width: 100%; text-align: left; display: grid; grid-template-columns: 120px 1fr auto; gap: 10px; align-items: baseline;
+  padding: 9px 10px; border-radius: 12px; transition: background .2s, transform .35s var(--spring);
+}
+.eye-row:hover { background: var(--bg-elev); }
+.eye-src { font-size: .78rem; font-weight: 700; color: var(--cat); }
+.eye-title { font-family: var(--serif); font-size: .98rem; line-height: 1.3; }
+.eye-time { font-size: .74rem; color: var(--muted); white-space: nowrap; }
+@media (max-width: 600px) { .eye-row { grid-template-columns: 1fr; gap: 2px; } }
+
+.why { margin: 10px 0 4px; font-size: .9rem; color: var(--muted); }
+.why summary { cursor: pointer; font-weight: 600; list-style: none; display: inline-flex; gap: 6px; align-items: center; }
+.why summary::before { content: '?'; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: .7rem; background: var(--surface); color: var(--text); }
+.why ul { margin: 10px 0; padding-left: 20px; line-height: 1.7; }
+.why[open] ul, .why[open] .why-actions { animation: rise .35s var(--smooth); }
+.why-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.secondary.on { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+
+.story-card { grid-column: 1 / -1; max-width: 860px; opacity: 1; transform: none; }
+.new-pill-inline, .new-pill { font-weight: 700; }
+.meta .new-pill { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: #fff; font-size: .7rem; }
+.timeline { list-style: none; margin: 14px 0 6px; padding: 0 0 0 18px; border-left: 2px solid var(--border); }
+.timeline li { position: relative; padding: 8px 10px; border-radius: 12px; cursor: pointer; display: grid; grid-template-columns: 90px 130px 1fr; gap: 10px; align-items: baseline; transition: background .2s; }
+.timeline li:hover { background: var(--surface); }
+.timeline li::before { content: ''; position: absolute; left: -25px; top: 14px; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); border: 2px solid var(--bg-elev); }
+.timeline li.is-new::before { background: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent); }
+.tl-time { font-size: .76rem; color: var(--muted); }
+.tl-src { font-size: .78rem; font-weight: 700; }
+.tl-title { font-family: var(--serif); }
+@media (max-width: 640px) { .timeline li { grid-template-columns: 1fr; gap: 2px; } }
+
+/* Üstte beliren "yeni haber" düğmesi */
+.new-pill {
+  position: fixed; left: 50%; top: 150px; z-index: 25; transform: translate(-50%, -20px) scale(.9); opacity: 0; pointer-events: none;
+  padding: 10px 18px; border-radius: 999px; background: var(--accent); color: #fff; font-size: .88rem;
+  box-shadow: 0 10px 24px -8px var(--accent); transition: transform .5s var(--spring), opacity .3s;
+}
+.new-pill.show { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+
+/* Öğrendiklerim çubukları */
+.bar-row { display: grid; grid-template-columns: 150px 1fr; gap: 10px; align-items: center; margin: 8px 0; font-size: .86rem; font-weight: 600; }
+.bar-row i { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--accent), #ffb02e); width: var(--w); animation: grow .8s var(--smooth); transform-origin: left; }
+@keyframes grow { from { transform: scaleX(0); } }
