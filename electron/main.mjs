@@ -1,5 +1,5 @@
 // Haber masaüstü uygulaması: haber sunucusunu uygulamanın içinde başlatır ve kendi penceresinde açar.
-import { app, BrowserWindow, nativeTheme, Menu } from 'electron';
+import { app, BrowserWindow, nativeTheme, Menu, Tray, nativeImage } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from '../src/server.js';
@@ -63,6 +63,59 @@ function openReader(url) {
   reader.loadURL(url);
 }
 
+// ---------- Menü çubuğunda son dakika ----------
+// Son 6 saatte en çok kaynağın yazdığı haberler menü çubuğunda döner; tıklayınca uygulamada açılır.
+let tray = null;
+let trayItems = [];
+let trayIdx = 0;
+const short = (s, n) => (s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s);
+
+function showInApp(link) {
+  if (!win) return createWindow().then(() => setTimeout(() => showInApp(link), 1500));
+  win.show(); win.focus();
+  win.webContents.executeJavaScript(`window.openByLink && window.openByLink(${JSON.stringify(link)})`);
+}
+
+async function refreshTray() {
+  try {
+    const { items } = await fetch(`${baseUrl}/api/news?limit=600`).then((r) => r.json());
+    const recent = items.filter((i) => Date.now() - new Date(i.date || 0) < 6 * 3600e3);
+    const seen = new Set();
+    trayItems = recent
+      .sort((a, b) => (b.storySize || 1) - (a.storySize || 1) || new Date(b.date) - new Date(a.date))
+      .filter((i) => !seen.has(i.storyId) && seen.add(i.storyId))
+      .slice(0, 10);
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: 'Şu an çok konuşulanlar', enabled: false },
+      ...trayItems.map((i) => ({
+        label: `${short(i.title, 70)}  ·  ${i.source}${i.storySize > 1 ? ` (+${i.storySize - 1})` : ''}`,
+        click: () => showInApp(i.link),
+      })),
+      { type: 'separator' },
+      { label: "Haber'i aç", click: () => (win ? (win.show(), win.focus()) : createWindow()) },
+      { label: 'Menü çubuğu başlığını gizle/göster', click: () => { trayTitleOn = !trayTitleOn; rotateTray(); } },
+      { label: 'Çık', role: 'quit' },
+    ]));
+    rotateTray();
+  } catch {}
+}
+let trayTitleOn = true;
+function rotateTray() {
+  if (!tray) return;
+  const i = trayItems[trayIdx++ % Math.max(1, trayItems.length)];
+  tray.setTitle(trayTitleOn && i ? ` ${short(i.title, 42)}` : '', { fontType: 'monospacedDigit' });
+  tray.setToolTip(i ? `${i.source}: ${i.title}` : 'Haber');
+}
+
+function createTray() {
+  const icon = nativeImage.createFromPath(path.join(here, 'trayTemplate.png'));
+  icon.setTemplateImage(true);
+  tray = new Tray(icon);
+  refreshTray();
+  setInterval(refreshTray, 5 * 60 * 1000);
+  setInterval(rotateTray, 20 * 1000);
+}
+
 app.setName('Haber');
 app.whenReady().then(() => {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
@@ -83,7 +136,7 @@ app.whenReady().then(() => {
     },
     { role: 'windowMenu', label: 'Pencere' },
   ]));
-  createWindow();
+  createWindow().then(createTray);
   app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
 });
 

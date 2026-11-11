@@ -8,6 +8,13 @@ Dünyadaki haberleri tek çatı altında toplayan, kişisel zevklerine göre fil
 - Haberleri 60+ niş etikete otomatik ayırır: takımlar, şirketler, ülkeler, konular (`src/tags.js`)
 - Filtre çubuğu: etiketleri birleştirerek daraltma, zaman aralığı (1 saat / bugün / hafta), sıralama
 - Konuları takip etme veya tamamen gizleme, kaynakları açıp kapatma
+- **Farklı gözler:** aynı olayı yazan haberler tek kartta; Türk ve dünya basınının başlıkları yan yana (`src/stories.js`)
+- **Öğrenen akış:** okuduğun, kaydettiğin, geçtiğin haberlerden öğrenir; her haberde "Bunu neden görüyorum?"
+- **Hikaye takibi:** gelişen bir olayı takibe al, yeni gelişmeler zaman çizelgesinde birikir ve bildirim gelir
+- **Hızlı ayıkla:** kartları sağa (kaydet), sola (geç), yukarı (oku) kaydır
+- **Dünya haritası ve haber pasaportu:** ülkelere göre haberler, okuduğun ülkeler damgalanır (`src/countries.js`)
+- **Haftan:** haftalık okuma özeti, unvanın, serin
+- **Menü çubuğu:** Mac menü çubuğunda şu an en çok konuşulan haberler döner
 - Kategori ve dil tercihine göre filtreleme
 - İlgi alanı anahtar kelimeleri: eşleşen haberler en üstte, vurgulu gösterilir
 - "Sana Özel" akışı, kategori sekmeleri, anlık arama (`/` kısayolu)
