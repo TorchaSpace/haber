@@ -394,3 +394,12 @@ button:active, .chip:active, .tab:active { transform: scale(.92); }
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
 ::view-transition-new(root) { animation: reveal .7s var(--smooth); }
 @keyframes reveal { from { clip-path: circle(0 at var(--vt-x, 100%) var(--vt-y, 0)); } to { clip-path: circle(150vmax at var(--vt-x, 100%) var(--vt-y, 0)); } }
+
+/* ---------- Masaüstü uygulaması (Electron) ---------- */
+.desktop .topbar { -webkit-app-region: drag; padding-top: 16px; }
+.desktop.platform-darwin .topbar { padding-left: 92px; }
+.desktop .topbar .search, .desktop .topbar button, .desktop .topbar input { -webkit-app-region: no-drag; }
+.desktop .tabs-wrap { top: 68px; }
+.desktop ::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
+.desktop body { user-select: none; }
+.desktop .sheet-body, .desktop input { user-select: text; }

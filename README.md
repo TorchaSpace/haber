@@ -18,9 +18,19 @@ Dünyadaki haberleri tek çatı altında toplayan, kişisel zevklerine göre fil
 
 Node.js 18 veya üstü gerekir.
 
-**En kolayı:** klasördeki `Haberi Aç.command` dosyasına çift tıkla. Sunucu başlar ve tarayıcıda açılır. Kapatmak için açılan Terminal penceresini kapat.
+### Mac uygulaması
 
-Ya da terminalden:
+Klasördeki **Haber.app**'e çift tıkla; tarayıcı gerekmez, kendi penceresinde açılır. Haber.app GitHub'a gönderilmez, her bilgisayarda bir kez derlenir:
+
+```bash
+npm install
+npm run build:mac
+```
+
+Geliştirirken derlemeden denemek için `npm run app`.
+
+### Web sürümü
+
 
 ```bash
 npm install
@@ -32,6 +42,8 @@ Ardından http://localhost:3000 adresini aç. Geliştirirken `npm run dev` dosya
 ## Yapı
 
 ```
+electron/
+  main.mjs     Masaüstü uygulaması (Electron): sunucuyu içeride başlatır, pencereyi açar
 src/
   server.js    Express sunucusu ve API (/api/news, /api/meta)
   feeds.js     RSS kaynaklarını çeker, birleştirir, 10 dk önbellekler

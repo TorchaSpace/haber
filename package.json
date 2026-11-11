@@ -2,11 +2,13 @@
   "name": "haber",
   "version": "0.1.0",
   "description": "Kişisel zevklere göre dünyadaki haberleri tek çatı altında toplayan haber uygulaması",
-  "main": "src/server.js",
+  "main": "electron/main.mjs",
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "app": "electron .",
+    "build:mac": "electron-builder --mac --dir && rm -rf Haber.app && cp -R dist/mac-arm64/Haber.app ./Haber.app && codesign --force --deep -s - Haber.app"
   },
   "engines": {
     "node": ">=18"
@@ -15,5 +17,29 @@
   "dependencies": {
     "express": "^4.22.3",
     "rss-parser": "^3.13.0"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.torchaspace.haber",
+    "productName": "Haber",
+    "files": [
+      "src/**",
+      "public/**",
+      "electron/**",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "mac": {
+      "category": "public.app-category.news",
+      "icon": "build/icon.png",
+      "target": "dir",
+      "identity": null
+    }
   }
 }
