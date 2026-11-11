@@ -24,7 +24,7 @@ app.get('/api/news', async (req, res) => {
   const q = (req.query.q || '').toString().toLocaleLowerCase('tr');
   const limit = Math.min(Number(req.query.limit) || 100, 500);
 
-  let items = await getAllNews();
+  let items = await getAllNews({ force: req.query.refresh === '1' });
   if (cats) items = items.filter((i) => cats.includes(i.category));
   if (langs) items = items.filter((i) => langs.includes(i.lang));
   if (srcs) items = items.filter((i) => srcs.includes(i.sourceId));

@@ -7,8 +7,12 @@ Dünyadaki haberleri tek çatı altında toplayan, kişisel zevklerine göre fil
 - Türkçe ve İngilizce RSS kaynaklarından haberleri toplar (BBC, DW, Al Jazeera, The Guardian, The Verge, Ars Technica…)
 - Kategori ve dil tercihine göre filtreleme
 - İlgi alanı anahtar kelimeleri: eşleşen haberler en üstte, vurgulu gösterilir
-- Haberlerde arama
-- Tercihler tarayıcıda saklanır, açık/koyu tema otomatik
+- "Sana Özel" akışı, kategori sekmeleri, anlık arama (`/` kısayolu)
+- Görselli manşet ve kart ızgarası, iskelet yükleme, kademeli kart girişi
+- Kaydetme (sonra oku), okunan haberlerin soluklaşması, paylaşma
+- Aşağı sürükleyerek kapanan okuma paneli, ilk açılışta ilgi alanı seçimi
+- Açık/koyu tema (dairesel geçiş), hareket azaltma tercihine saygı
+- Tercihler ve kaydedilenler tarayıcıda saklanır
 
 ## Çalıştırma
 
