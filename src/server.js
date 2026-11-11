@@ -5,6 +5,7 @@ import { getAllNews } from './feeds.js';
 import { sources, categories } from './sources.js';
 import { getArticle } from './article.js';
 import { tagList, tagGroups } from './tags.js';
+import { countryList } from './countries.js';
 
 const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -14,7 +15,7 @@ export function createApp() {
 
   // Kaynak ve kategori listesi (tercih ekranı için)
   app.get('/api/meta', (_req, res) => {
-    res.json({ categories, tagGroups, tags: tagList, sources: sources.map(({ id, name, lang, category }) => ({ id, name, lang, category })) });
+    res.json({ categories, tagGroups, tags: tagList, countries: countryList, sources: sources.map(({ id, name, lang, category }) => ({ id, name, lang, category })) });
   });
 
   // Haberler: ?categories=dunya,teknoloji&langs=tr,en&sources=bbc-world&q=yapay+zeka&limit=100&refresh=1

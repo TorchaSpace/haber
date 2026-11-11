@@ -1,6 +1,8 @@
 import Parser from 'rss-parser';
 import { sources } from './sources.js';
 import { tagItem } from './tags.js';
+import { detectCountries } from './countries.js';
+import { clusterStories } from './stories.js';
 
 const parser = new Parser({
   timeout: 10000,
@@ -60,8 +62,9 @@ export async function getAllNews({ force = false } = {}) {
   const items = results
     .flat()
     .filter((i) => i.title && i.link && !seen.has(i.link) && seen.add(i.link))
-    .map((i) => ({ ...i, tags: tagItem(i) }))
+    .map((i) => ({ ...i, tags: tagItem(i), countries: detectCountries(i) }))
     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  clusterStories(items);
   cache = { at: Date.now(), items };
   return items;
 }
