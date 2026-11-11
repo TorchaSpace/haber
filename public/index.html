@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Haber</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Haber</h1>
+    <input id="search" type="search" placeholder="Haberlerde ara…" />
+    <button id="toggle-prefs">Tercihlerim</button>
+  </header>
+
+  <aside id="prefs" hidden>
+    <h2>Kategoriler</h2>
+    <div id="cat-list" class="chips"></div>
+    <h2>Diller</h2>
+    <div id="lang-list" class="chips"></div>
+    <h2>İlgi alanı anahtar kelimeleri</h2>
+    <input id="keywords" placeholder="ör. yapay zeka, galatasaray, uzay" />
+    <p class="hint">Bu kelimeleri içeren haberler en üstte gösterilir.</p>
+  </aside>
+
+  <main id="feed"><p class="status">Haberler yükleniyor…</p></main>
+  <script src="app.js"></script>
+</body>
+</html>
