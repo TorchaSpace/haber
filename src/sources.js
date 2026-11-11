@@ -1,25 +1,62 @@
-// Haber kaynakları (RSS). Yeni kaynak eklemek için bu listeye bir satır eklemen yeterli.
-// category: gundem | dunya | teknoloji | ekonomi | spor | bilim | kultur
+// Haber kaynakları (RSS). Yeni kaynak eklemek için listeye bir satır eklemen yeterli.
+export const categories = {
+  gundem: 'Türkiye',
+  dunya: 'Dünya',
+  ekonomi: 'Ekonomi',
+  teknoloji: 'Teknoloji',
+  bilim: 'Bilim & Uzay',
+  saglik: 'Sağlık',
+  spor: 'Spor',
+  oyun: 'Oyun',
+  kultur: 'Kültür & Sanat',
+};
+
 export const sources = [
+  // Türkçe
   { id: 'bbc-turkce', name: 'BBC Türkçe', url: 'https://feeds.bbci.co.uk/turkce/rss.xml', lang: 'tr', category: 'gundem' },
   { id: 'dw-turkce', name: 'DW Türkçe', url: 'https://rss.dw.com/rdf/rss-tur-all', lang: 'tr', category: 'gundem' },
+  { id: 'ntv-gundem', name: 'NTV', url: 'https://www.ntv.com.tr/gundem.rss', lang: 'tr', category: 'gundem' },
+  { id: 'hurriyet', name: 'Hürriyet', url: 'https://www.hurriyet.com.tr/rss/anasayfa', lang: 'tr', category: 'gundem' },
+  { id: 'aa', name: 'Anadolu Ajansı', url: 'https://www.aa.com.tr/tr/rss/default?cat=guncel', lang: 'tr', category: 'gundem' },
+  { id: 'trt', name: 'TRT Haber', url: 'https://www.trthaber.com/sondakika.rss', lang: 'tr', category: 'gundem' },
+  { id: 'ntv-ekonomi', name: 'NTV Ekonomi', url: 'https://www.ntv.com.tr/ekonomi.rss', lang: 'tr', category: 'ekonomi' },
+  { id: 'bloomberght', name: 'Bloomberg HT', url: 'https://www.bloomberght.com/rss', lang: 'tr', category: 'ekonomi' },
+  { id: 'ntv-teknoloji', name: 'NTV Teknoloji', url: 'https://www.ntv.com.tr/teknoloji.rss', lang: 'tr', category: 'teknoloji' },
+  { id: 'webtekno', name: 'Webtekno', url: 'https://www.webtekno.com/rss.xml', lang: 'tr', category: 'teknoloji' },
+  { id: 'shiftdelete', name: 'ShiftDelete', url: 'https://shiftdelete.net/feed', lang: 'tr', category: 'teknoloji' },
+  { id: 'donanimhaber', name: 'DonanımHaber', url: 'https://www.donanimhaber.com/rss/tum/', lang: 'tr', category: 'teknoloji' },
+  { id: 'fotomac', name: 'Fotomaç', url: 'https://www.fotomac.com.tr/rss/anasayfa.xml', lang: 'tr', category: 'spor' },
+
+  // İngilizce
   { id: 'bbc-world', name: 'BBC World', url: 'https://feeds.bbci.co.uk/news/world/rss.xml', lang: 'en', category: 'dunya' },
   { id: 'aljazeera', name: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml', lang: 'en', category: 'dunya' },
   { id: 'guardian-world', name: 'The Guardian', url: 'https://www.theguardian.com/world/rss', lang: 'en', category: 'dunya' },
+  { id: 'nyt-world', name: 'New York Times', url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', lang: 'en', category: 'dunya' },
   { id: 'bbc-business', name: 'BBC Business', url: 'https://feeds.bbci.co.uk/news/business/rss.xml', lang: 'en', category: 'ekonomi' },
+  { id: 'cnbc', name: 'CNBC Markets', url: 'https://www.cnbc.com/id/100003114/device/rss/rss.html', lang: 'en', category: 'ekonomi' },
+  { id: 'guardian-econ', name: 'Guardian Economics', url: 'https://www.theguardian.com/business/economics/rss', lang: 'en', category: 'ekonomi' },
+  { id: 'coindesk', name: 'CoinDesk', url: 'https://www.coindesk.com/arc/outboundfeeds/rss/', lang: 'en', category: 'ekonomi' },
   { id: 'theverge', name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml', lang: 'en', category: 'teknoloji' },
   { id: 'ars', name: 'Ars Technica', url: 'https://feeds.arstechnica.com/arstechnica/index', lang: 'en', category: 'teknoloji' },
+  { id: 'techcrunch', name: 'TechCrunch', url: 'https://techcrunch.com/feed/', lang: 'en', category: 'teknoloji' },
+  { id: 'wired', name: 'Wired', url: 'https://www.wired.com/feed/rss', lang: 'en', category: 'teknoloji' },
+  { id: 'mittr', name: 'MIT Tech Review', url: 'https://www.technologyreview.com/feed/', lang: 'en', category: 'teknoloji' },
+  { id: 'bbc-tech', name: 'BBC Technology', url: 'https://feeds.bbci.co.uk/news/technology/rss.xml', lang: 'en', category: 'teknoloji' },
   { id: 'bbc-science', name: 'BBC Science', url: 'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml', lang: 'en', category: 'bilim' },
+  { id: 'sciencedaily', name: 'ScienceDaily', url: 'https://www.sciencedaily.com/rss/all.xml', lang: 'en', category: 'bilim' },
+  { id: 'space', name: 'Space.com', url: 'https://www.space.com/feeds/all', lang: 'en', category: 'bilim' },
+  { id: 'nasa', name: 'NASA', url: 'https://www.nasa.gov/news-release/feed/', lang: 'en', category: 'bilim' },
+  { id: 'guardian-env', name: 'Guardian Environment', url: 'https://www.theguardian.com/environment/rss', lang: 'en', category: 'bilim' },
+  { id: 'bbc-health', name: 'BBC Health', url: 'https://feeds.bbci.co.uk/news/health/rss.xml', lang: 'en', category: 'saglik' },
   { id: 'bbc-sport', name: 'BBC Sport', url: 'https://feeds.bbci.co.uk/sport/rss.xml', lang: 'en', category: 'spor' },
+  { id: 'guardian-football', name: 'Guardian Football', url: 'https://www.theguardian.com/football/rss', lang: 'en', category: 'spor' },
+  { id: 'skysports', name: 'Sky Sports', url: 'https://www.skysports.com/rss/12040', lang: 'en', category: 'spor' },
+  { id: 'espn', name: 'ESPN', url: 'https://www.espn.com/espn/rss/news', lang: 'en', category: 'spor' },
+  { id: 'autosport', name: 'Autosport F1', url: 'https://www.autosport.com/rss/f1/news/', lang: 'en', category: 'spor' },
+  { id: 'polygon', name: 'Polygon', url: 'https://www.polygon.com/rss/index.xml', lang: 'en', category: 'oyun' },
+  { id: 'ign', name: 'IGN', url: 'https://feeds.feedburner.com/ign/all', lang: 'en', category: 'oyun' },
   { id: 'guardian-culture', name: 'Guardian Culture', url: 'https://www.theguardian.com/culture/rss', lang: 'en', category: 'kultur' },
+  { id: 'guardian-film', name: 'Guardian Film', url: 'https://www.theguardian.com/film/rss', lang: 'en', category: 'kultur' },
+  { id: 'variety', name: 'Variety', url: 'https://variety.com/feed/', lang: 'en', category: 'kultur' },
+  { id: 'pitchfork', name: 'Pitchfork', url: 'https://pitchfork.com/rss/news/', lang: 'en', category: 'kultur' },
 ];
-
-export const categories = {
-  gundem: 'Gündem',
-  dunya: 'Dünya',
-  teknoloji: 'Teknoloji',
-  ekonomi: 'Ekonomi',
-  spor: 'Spor',
-  bilim: 'Bilim',
-  kultur: 'Kültür & Sanat',
-};

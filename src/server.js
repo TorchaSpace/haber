@@ -4,6 +4,7 @@ import path from 'node:path';
 import { getAllNews } from './feeds.js';
 import { sources, categories } from './sources.js';
 import { getArticle } from './article.js';
+import { tagList, tagGroups } from './tags.js';
 
 const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -13,7 +14,7 @@ export function createApp() {
 
   // Kaynak ve kategori listesi (tercih ekranı için)
   app.get('/api/meta', (_req, res) => {
-    res.json({ categories, sources: sources.map(({ id, name, lang, category }) => ({ id, name, lang, category })) });
+    res.json({ categories, tagGroups, tags: tagList, sources: sources.map(({ id, name, lang, category }) => ({ id, name, lang, category })) });
   });
 
   // Haberler: ?categories=dunya,teknoloji&langs=tr,en&sources=bbc-world&q=yapay+zeka&limit=100&refresh=1
@@ -23,12 +24,14 @@ export function createApp() {
     const langs = list(req.query.langs);
     const srcs = list(req.query.sources);
     const q = (req.query.q || '').toString().toLocaleLowerCase('tr');
-    const limit = Math.min(Number(req.query.limit) || 100, 500);
+    const limit = Math.min(Number(req.query.limit) || 100, 3000);
 
     let items = await getAllNews({ force: req.query.refresh === '1' });
     if (cats) items = items.filter((i) => cats.includes(i.category));
     if (langs) items = items.filter((i) => langs.includes(i.lang));
     if (srcs) items = items.filter((i) => srcs.includes(i.sourceId));
+    const tags = list(req.query.tags);
+    if (tags) items = items.filter((i) => tags.some((t) => i.tags.includes(t)));
     if (q) items = items.filter((i) => `${i.title} ${i.summary}`.toLocaleLowerCase('tr').includes(q));
 
     res.json({ count: items.length, items: items.slice(0, limit) });

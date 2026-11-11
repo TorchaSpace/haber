@@ -4,7 +4,10 @@ Dünyadaki haberleri tek çatı altında toplayan, kişisel zevklerine göre fil
 
 ## Özellikler (v0.1)
 
-- Türkçe ve İngilizce RSS kaynaklarından haberleri toplar (BBC, DW, Al Jazeera, The Guardian, The Verge, Ars Technica…)
+- 44 Türkçe ve İngilizce kaynaktan haber toplar (BBC, NTV, Hürriyet, AA, TRT, Bloomberg HT, Webtekno, Guardian, NYT, TechCrunch, ESPN, IGN…)
+- Haberleri 60+ niş etikete otomatik ayırır: takımlar, şirketler, ülkeler, konular (`src/tags.js`)
+- Filtre çubuğu: etiketleri birleştirerek daraltma, zaman aralığı (1 saat / bugün / hafta), sıralama
+- Konuları takip etme veya tamamen gizleme, kaynakları açıp kapatma
 - Kategori ve dil tercihine göre filtreleme
 - İlgi alanı anahtar kelimeleri: eşleşen haberler en üstte, vurgulu gösterilir
 - "Sana Özel" akışı, kategori sekmeleri, anlık arama (`/` kısayolu)
@@ -50,6 +53,7 @@ src/
   article.js   Haberin tam metnini çıkarır (Readability) ve temizler
   feeds.js     RSS kaynaklarını çeker, birleştirir, 10 dk önbellekler
   sources.js   Haber kaynakları ve kategoriler (yeni kaynak buraya eklenir)
+  tags.js      Otomatik etiketleme kuralları (yeni etiket buraya eklenir)
 public/
   index.html, style.css, app.js   Arayüz ve tercih ekranı
 ```

@@ -1,9 +1,10 @@
 import Parser from 'rss-parser';
 import { sources } from './sources.js';
+import { tagItem } from './tags.js';
 
 const parser = new Parser({
   timeout: 10000,
-  headers: { 'User-Agent': 'HaberApp/0.1' },
+  headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh) HaberApp/0.2' },
   customFields: {
     item: [
       ['media:content', 'mediaContent', { keepArray: true }],
@@ -59,6 +60,7 @@ export async function getAllNews({ force = false } = {}) {
   const items = results
     .flat()
     .filter((i) => i.title && i.link && !seen.has(i.link) && seen.add(i.link))
+    .map((i) => ({ ...i, tags: tagItem(i) }))
     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   cache = { at: Date.now(), items };
   return items;

@@ -1,33 +1,45 @@
 // Haber — arayüz mantığı
-// Tüm haberler bir kez çekilir; sekme, arama ve kişiselleştirme tarayıcıda anında uygulanır.
+// Tüm haberler bir kez çekilir; sekme, arama, etiket filtreleri ve kişiselleştirme tarayıcıda anında uygulanır.
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const PAGE = 24;
 const LANGS = { tr: 'Türkçe', en: 'İngilizce' };
-const CAT_EMOJI = { gundem: '📰', dunya: '🌍', teknoloji: '💻', ekonomi: '📈', spor: '⚽', bilim: '🔬', kultur: '🎭' };
+const CAT_EMOJI = { gundem: '🇹🇷', dunya: '🌍', ekonomi: '📈', teknoloji: '💻', bilim: '🔭', saglik: '🩺', spor: '⚽', oyun: '🎮', kultur: '🎭' };
+// İlk açılışta, seçilen kategoriye göre önerilecek etiket grupları
+const CAT_GROUPS = { gundem: ['konu', 'bolge'], dunya: ['bolge', 'konu'], ekonomi: ['ekonomi'], teknoloji: ['teknoloji'], bilim: ['bilim'], saglik: ['bilim'], spor: ['spor'], oyun: ['kultur'], kultur: ['kultur'] };
+const TIME = { all: Infinity, '1h': 3.6e6, today: 'today', week: 7 * 864e5 };
 
 // ---------- Kalıcı durum (tarayıcıda) ----------
 const store = {
   get(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } },
   set(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} },
 };
-const prefs = { categories: [], langs: [], keywords: [], onboarded: false, ...store.get('haber.prefs', {}) };
+const prefs = {
+  categories: [], langs: [], keywords: [], onboarded: false,
+  followTags: [], muteTags: [], muteSources: [], sort: 'smart',
+  ...store.get('haber.prefs', {}),
+};
 if (typeof prefs.keywords === 'string') prefs.keywords = prefs.keywords.split(',').map((k) => k.trim()).filter(Boolean);
 const saved = new Map(store.get('haber.saved', []).map((i) => [i.link, i]));
 const readSet = new Set(store.get('haber.read', []));
 const savePrefs = () => store.set('haber.prefs', prefs);
-const saveSaved = () => store.set('haber.saved', [...saved.values()]);
+const saveSaved = () => store.set('haber.saved', [...saved.values()].map(({ _text, ...rest }) => rest));
 const saveRead = () => store.set('haber.read', [...readSet].slice(-500));
 
 // ---------- Uygulama durumu ----------
 let categories = {};
+let tagGroups = {};
+let tagMap = {};
+let sources = [];
 let allNews = [];
 let view = [];
 let shown = 0;
 let activeTab = 'foryou';
 let query = '';
+let activeTags = [];
+let timeRange = 'all';
 
 // ---------- Yardımcılar ----------
 function timeAgo(date) {
@@ -40,8 +52,9 @@ function timeAgo(date) {
   return new Date(date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
 }
 const catColor = (c) => `var(--c-${c}, var(--accent))`;
-const lower = (s) => s.toLocaleLowerCase('tr');
+const lower = (s) => String(s).toLocaleLowerCase('tr');
 const haptic = (ms = 8) => { try { navigator.vibrate?.(ms); } catch {} };
+const tagLabel = (id) => (tagMap[id] ? `${tagMap[id].emoji} ${tagMap[id].label}` : id);
 
 function toast(msg) {
   const el = document.createElement('div');
@@ -52,8 +65,7 @@ function toast(msg) {
 }
 
 function matchedKeywords(item) {
-  const text = lower(`${item.title} ${item.summary}`);
-  return prefs.keywords.filter((k) => text.includes(lower(k)));
+  return prefs.keywords.filter((k) => item._text.includes(lower(k)));
 }
 
 // ---------- Sekmeler ----------
@@ -88,20 +100,56 @@ function moveIndicator() {
   const ind = $('tab-indicator');
   ind.style.width = active.offsetWidth + 'px';
   ind.style.transform = `translateX(${active.offsetLeft}px)`;
-  const cat = categories[activeTab] ? catColor(activeTab) : 'var(--accent)';
-  ind.style.background = cat;
+  ind.style.background = categories[activeTab] ? catColor(activeTab) : 'var(--accent)';
 }
 
 function selectTab(id) {
   if (id === activeTab) { window.scrollTo({ top: 0 }); return; }
   haptic();
   activeTab = id;
+  activeTags = [];
   $('tabs').querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.id === id));
-  const btn = $('tabs').querySelector(`.tab[data-id="${id}"]`);
-  btn?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', inline: 'center', block: 'nearest' });
+  $('tabs').querySelector(`.tab[data-id="${id}"]`)?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', inline: 'center', block: 'nearest' });
   moveIndicator();
   window.scrollTo({ top: 0, behavior: 'instant' });
   buildView();
+}
+
+// ---------- Filtre çubuğu ----------
+function moveSegThumb() {
+  const on = $('time-seg').querySelector('button.on');
+  const thumb = $('time-seg').querySelector('.seg-thumb');
+  thumb.style.width = on.offsetWidth + 'px';
+  thumb.style.transform = `translateX(${on.offsetLeft}px)`;
+}
+
+function renderSortBtn() {
+  const forYou = activeTab === 'foryou';
+  $('sort-btn').textContent = forYou && prefs.sort === 'smart' ? '✦ Sana uygun' : '🕒 En yeni';
+  $('sort-btn').disabled = !forYou;
+  $('sort-btn').classList.toggle('on', forYou && prefs.sort === 'smart');
+}
+
+// Görünen haberlerdeki etiketleri sayıp şeride dizer; seçililer başta
+function renderTagStrip(baseItems) {
+  const counts = new Map();
+  for (const i of baseItems) for (const t of i.tags) if (!prefs.muteTags.includes(t)) counts.set(t, (counts.get(t) || 0) + 1);
+  const top = [...counts.entries()]
+    .filter(([t]) => !activeTags.includes(t))
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 40);
+  $('tag-strip').innerHTML =
+    activeTags.map((t) => `<button class="tag-chip on" data-t="${t}">${esc(tagLabel(t))}<span class="n">${counts.get(t) || 0}</span><span class="x">✕</span></button>`).join('') +
+    top.map(([t, n]) => `<button class="tag-chip${prefs.followTags.includes(t) ? ' followed' : ''}" data-t="${t}">${esc(tagLabel(t))}<span class="n">${n}</span></button>`).join('');
+  $('clear-filters').hidden = !(activeTags.length || timeRange !== 'all' || query);
+}
+
+function toggleActiveTag(t) {
+  haptic();
+  activeTags = activeTags.includes(t) ? activeTags.filter((x) => x !== t) : [...activeTags, t];
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  buildView();
+  $('tag-strip').scrollTo({ left: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
 }
 
 // ---------- Karşılama metni ----------
@@ -109,44 +157,75 @@ function renderGreeting() {
   const h = new Date().getHours();
   const hello = h < 6 ? 'İyi geceler' : h < 12 ? 'Günaydın' : h < 18 ? 'İyi günler' : 'İyi akşamlar';
   const titles = { foryou: hello, all: 'Tüm haberler', saved: 'Kaydettiklerin' };
-  $('greeting-title').textContent = titles[activeTab] || categories[activeTab] || hello;
-  const sub = activeTab === 'foryou'
-    ? `${view.length} haber senin ilgi alanlarına göre sıralandı.`
-    : activeTab === 'saved' ? 'Sonra okumak için ayırdıkların.' : `${view.length} güncel haber`;
-  $('greeting-sub').textContent = query ? `"${query}" için ${view.length} sonuç` : sub;
-  for (const el of $('greeting').children) { el.style.animation = 'none'; el.offsetHeight; el.style.animation = ''; }
+  let title = titles[activeTab] || categories[activeTab] || hello;
+  if (activeTags.length === 1) title = tagLabel(activeTags[0]);
+  $('greeting-title').textContent = title;
+  let sub;
+  if (query) sub = `"${query}" için ${view.length} sonuç`;
+  else if (activeTags.length > 1) sub = `${activeTags.map((t) => tagMap[t]?.label || t).join(' + ')}: ${view.length} haber`;
+  else if (activeTab === 'foryou') sub = `${view.length} haber senin zevkine göre sıralandı`;
+  else if (activeTab === 'saved') sub = 'Sonra okumak için ayırdıkların';
+  else sub = `${view.length} güncel haber`;
+  $('greeting-sub').textContent = sub;
 }
 
 // ---------- Akışı oluştur ----------
+function inTime(item) {
+  if (timeRange === 'all') return true;
+  const t = new Date(item.date || 0).getTime();
+  if (TIME[timeRange] === 'today') { const d = new Date(); d.setHours(0, 0, 0, 0); return t >= d.getTime(); }
+  return Date.now() - t <= TIME[timeRange];
+}
+
+function score(item) {
+  let s = -(Date.now() - new Date(item.date || 0)) / 3.6e6 / 6; // her 6 saatte 1 puan düşer
+  s += matchedKeywords(item).length * 10;
+  s += item.tags.filter((t) => prefs.followTags.includes(t)).length * 12;
+  if (prefs.categories.includes(item.category)) s += 3;
+  return s;
+}
+
 function buildView() {
   let items = activeTab === 'saved' ? [...saved.values()].reverse() : allNews;
-  if (prefs.langs.length && activeTab !== 'saved') items = items.filter((i) => prefs.langs.includes(i.lang));
+  if (activeTab !== 'saved') {
+    items = items.filter((i) => !prefs.muteSources.includes(i.sourceId) && !i.tags.some((t) => prefs.muteTags.includes(t)));
+    if (prefs.langs.length) items = items.filter((i) => prefs.langs.includes(i.lang));
+  }
 
   if (activeTab === 'foryou') {
-    if (prefs.categories.length) items = items.filter((i) => prefs.categories.includes(i.category) || matchedKeywords(i).length);
-    // Puan: anahtar kelime eşleşmesi + tazelik. Eşleşenler üste çıkar, gerisi zaman sırasında kalır.
-    items = items
-      .map((i) => ({ i, s: matchedKeywords(i).length * 10 - (Date.now() - new Date(i.date || 0)) / 3.6e6 / 6 }))
-      .sort((a, b) => b.s - a.s)
-      .map((x) => x.i);
+    if (prefs.categories.length || prefs.followTags.length) {
+      items = items.filter((i) => prefs.categories.includes(i.category) || i.tags.some((t) => prefs.followTags.includes(t)) || matchedKeywords(i).length);
+    }
   } else if (categories[activeTab]) {
     items = items.filter((i) => i.category === activeTab);
   }
 
+  items = items.filter(inTime);
   if (query) {
     const q = lower(query);
-    items = items.filter((i) => lower(`${i.title} ${i.summary} ${i.source}`).includes(q));
+    items = items.filter((i) => i._text.includes(q) || lower(i.source).includes(q) || i.tags.some((t) => lower(tagMap[t]?.label || '').includes(q)));
+  }
+
+  // Seçili etiketlerin hepsi birden aranır (her etiket sonucu daraltır)
+  if (activeTags.length) items = items.filter((i) => activeTags.every((t) => i.tags.includes(t)));
+  renderTagStrip(items);
+
+  if (activeTab === 'foryou' && prefs.sort === 'smart') {
+    items = items.map((i) => [i, score(i)]).sort((a, b) => b[1] - a[1]).map((x) => x[0]);
   }
 
   view = items;
   shown = 0;
   $('feed').innerHTML = '';
   renderGreeting();
+  renderSortBtn();
 
   if (!view.length) {
-    const empty = activeTab === 'saved'
+    const empty = activeTab === 'saved' && !activeTags.length
       ? ['🔖', 'Henüz bir şey kaydetmedin. Kartlardaki işaret simgesine dokun.']
-      : query ? ['🔎', 'Aramana uyan haber bulunamadı.'] : ['🌤️', 'Tercihlerine uyan haber yok. İlgi alanlarını genişletebilirsin.'];
+      : query ? ['🔎', 'Aramana uyan haber bulunamadı.']
+      : activeTags.length || timeRange !== 'all' ? ['🧐', 'Bu filtrelere uyan haber yok. Bir etiketi kaldırmayı ya da zamanı genişletmeyi dene.']
+      : ['🌤️', 'Tercihlerine uyan haber yok. İlgi alanlarını genişletebilirsin.'];
     $('feed').innerHTML = `<div class="status"><span class="big-emoji">${empty[0]}</span>${empty[1]}</div>`;
     return;
   }
@@ -160,7 +239,7 @@ function renderMore() {
   slice.forEach((item, idx) => {
     const n = shown + idx;
     let size = '';
-    if (n === 0 && item.image && !query) size = 'hero';
+    if (n === 0 && item.image && !query && !activeTags.length) size = 'hero';
     else if (n % 9 === 5 && item.image && innerWidth > 700) size = 'wide';
     frag.appendChild(cardEl(item, size, idx));
   });
@@ -186,6 +265,8 @@ function cardEl(item, size, idx) {
   const media = item.image
     ? `<div class="card-media"><img alt="" loading="${size === 'hero' ? 'eager' : 'lazy'}" decoding="async" referrerpolicy="no-referrer" src="${esc(src)}"></div>`
     : `<div class="card-media fallback"><span>${esc(item.source)}</span></div>`;
+  const tags = item.tags.slice(0, 3).map((t) =>
+    `<button class="card-tag${activeTags.includes(t) ? ' on' : ''}${prefs.followTags.includes(t) ? ' followed' : ''}" data-t="${t}">${esc(tagLabel(t))}</button>`).join('');
   el.innerHTML = `
     ${media}
     <button class="save${saved.has(item.link) ? ' on' : ''}" aria-label="Kaydet">
@@ -196,6 +277,7 @@ function cardEl(item, size, idx) {
       <h3>${esc(item.title)}</h3>
       ${item.summary ? `<p>${esc(item.summary)}</p>` : ''}
       ${kws.length && activeTab !== 'saved' ? `<span class="match-tag">✦ ${esc(kws.join(', '))}</span>` : ''}
+      ${tags ? `<div class="card-tags">${tags}</div>` : ''}
     </div>`;
 
   const img = el.querySelector('img');
@@ -209,6 +291,11 @@ function cardEl(item, size, idx) {
     });
   }
   el.querySelector('.save').addEventListener('click', (e) => { e.stopPropagation(); toggleSave(item, e.currentTarget); });
+  el.querySelectorAll('.card-tag').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!activeTags.includes(b.dataset.t)) toast(`${tagLabel(b.dataset.t)} filtrelendi`);
+    toggleActiveTag(b.dataset.t);
+  }));
   el.addEventListener('click', () => openSheet(item, el));
   revealObserver.observe(el);
   return el;
@@ -219,7 +306,7 @@ const revealObserver = new IntersectionObserver((entries) => {
   for (const e of entries) {
     if (!e.isIntersecting) continue;
     const el = e.target;
-    el.style.transitionDelay = reduceMotion ? '0ms' : `${el.dataset.stagger * 60}ms`;
+    el.style.transitionDelay = reduceMotion ? '0ms' : `${el.dataset.stagger * 50}ms`;
     el.classList.add('in');
     setTimeout(() => { el.style.transitionDelay = ''; }, 700);
     revealObserver.unobserve(el);
@@ -228,7 +315,7 @@ const revealObserver = new IntersectionObserver((entries) => {
 
 const moreObserver = new IntersectionObserver((entries) => {
   if (entries.some((e) => e.isIntersecting)) { moreObserver.disconnect(); renderMore(); }
-}, { rootMargin: '600px' });
+}, { rootMargin: '800px' });
 
 // ---------- Kaydetme ----------
 function toggleSave(item, btn) {
@@ -239,16 +326,13 @@ function toggleSave(item, btn) {
     toast('Kaydedilenlerden çıkarıldı');
   } else {
     saved.set(item.link, item);
-    if (btn) {
-      btn.classList.add('on');
-      burst(btn);
-    }
+    if (btn) { btn.classList.add('on'); burst(btn); }
     toast('Kaydedildi 🔖');
   }
   if (btn) { btn.classList.remove('pop'); btn.offsetWidth; btn.classList.add('pop'); }
   saveSaved();
-  const count = $('tabs').querySelector('.tab[data-id="saved"]');
-  if (count) { count.innerHTML = 'Kaydedilenler' + (saved.size ? `<span class="count">${saved.size}</span>` : ''); moveIndicator(); }
+  const tab = $('tabs').querySelector('.tab[data-id="saved"]');
+  if (tab) { tab.innerHTML = 'Kaydedilenler' + (saved.size ? `<span class="count">${saved.size}</span>` : ''); moveIndicator(); }
 }
 
 function burst(btn) {
@@ -272,11 +356,13 @@ function openSheet(item, card) {
   readSet.add(item.link); saveRead();
   setTimeout(() => card?.classList.add('read'), 400);
   const kws = matchedKeywords(item);
+  const tags = item.tags.map((t) => `<button class="card-tag${prefs.followTags.includes(t) ? ' followed' : ''}" data-t="${t}">${esc(tagLabel(t))}</button>`).join('');
   $('sheet-body').innerHTML = `
     ${item.image ? `<img class="sheet-img" src="${esc(item.image)}" alt="" referrerpolicy="no-referrer">` : ''}
     <div class="meta" style="--cat:${catColor(item.category)}"><span class="cat-pill">${esc(categories[item.category] || '')}</span><span class="dot"></span>${esc(item.source)}<span class="dot"></span>${timeAgo(item.date)}<span class="dot"></span><span id="read-time">okunuyor…</span></div>
     <h2>${esc(item.title)}</h2>
-    ${kws.length ? `<p class="hint">✦ Takip ettiğin konu: ${esc(kws.join(', '))}</p>` : ''}
+    ${tags ? `<div class="card-tags sheet-tags">${tags}<span class="hint">Takip etmek için etikete dokun</span></div>` : ''}
+    ${kws.length ? `<p class="hint">✦ Takip ettiğin kelime: ${esc(kws.join(', '))}</p>` : ''}
     <div class="sheet-actions">
       <button class="secondary" id="sheet-save">${saved.has(item.link) ? 'Kaydedildi ✓' : 'Kaydet'}</button>
       <button class="secondary" id="sheet-share">Paylaş</button>
@@ -286,6 +372,16 @@ function openSheet(item, card) {
       ${item.summary ? `<p class="lede">${esc(item.summary)}</p>` : ''}
       <div class="article-loading">${'<div class="sk-line shimmer"></div>'.repeat(6)}</div>
     </div>`;
+  $('sheet-body').querySelectorAll('.sheet-tags .card-tag').forEach((b) => { b.onclick = () => {
+    const t = b.dataset.t;
+    const on = !prefs.followTags.includes(t);
+    prefs.followTags = on ? [...prefs.followTags, t] : prefs.followTags.filter((x) => x !== t);
+    prefs.muteTags = prefs.muteTags.filter((x) => x !== t);
+    savePrefs();
+    b.classList.toggle('followed', on);
+    haptic();
+    toast(on ? `${tagLabel(t)} takip ediliyor` : `${tagLabel(t)} takipten çıkarıldı`);
+  }; });
   $('sheet-save').onclick = (e) => {
     toggleSave(item, null);
     e.currentTarget.textContent = saved.has(item.link) ? 'Kaydedildi ✓' : 'Kaydet';
@@ -316,14 +412,14 @@ async function loadArticle(item) {
   try {
     const res = await fetch('/api/article?url=' + encodeURIComponent(item.link));
     const data = await res.json();
-    if (sheetItem !== item) return; // bu arada başka habere geçildi
+    if (sheetItem !== item) return;
     if (!res.ok) throw new Error(data.error);
     $('read-time').textContent = `${data.minutes} dk okuma`;
     box.innerHTML = data.content;
     box.querySelectorAll('img').forEach((img) => {
       img.loading = 'lazy';
+      img.decoding = 'async';
       img.referrerPolicy = 'no-referrer';
-      // Manşet görselini tekrar gösterme, kırık görselleri gizle
       if (item.image && img.src.split('?')[0] === item.image.split('?')[0]) img.remove();
       img.onerror = () => img.remove();
     });
@@ -338,12 +434,22 @@ async function loadArticle(item) {
     $('fail-original').onclick = () => openOriginal(item.link);
   }
 }
+
 function closeSheet() {
+  if (!$('sheet').classList.contains('open')) return;
   $('sheet').classList.remove('open');
   $('sheet').style.transform = '';
   $('sheet-backdrop').classList.remove('open');
   document.body.classList.remove('locked');
   sheetItem = null;
+  buildViewIfDirty();
+}
+
+// Okurken etiket takibi değiştiyse akışı panel kapanınca güncelle
+let lastFollow = '';
+function buildViewIfDirty() {
+  const now = prefs.followTags.join();
+  if (now !== lastFollow) { lastFollow = now; const y = scrollY; buildView(); scrollTo({ top: y, behavior: 'instant' }); }
 }
 
 // Paneli aşağı sürükleyerek kapatma
@@ -367,7 +473,6 @@ function closeSheet() {
   handle.addEventListener('pointermove', (e) => move(e.clientY));
   handle.addEventListener('pointerup', end);
   handle.addEventListener('pointercancel', end);
-  // Mobilde içerik en üstteyken aşağı çekmek de kapatır
   const body = $('sheet-body');
   body.addEventListener('touchstart', (e) => { if (body.scrollTop <= 0) start(e.touches[0].clientY); }, { passive: true });
   body.addEventListener('touchmove', (e) => { if (startY !== null && body.scrollTop <= 0) move(e.touches[0].clientY); }, { passive: true });
@@ -419,27 +524,113 @@ function renderKeywords() {
   }
 }
 
-function openDrawer() { $('drawer').classList.add('open'); $('drawer-backdrop').classList.add('open'); document.body.classList.add('locked'); }
+// Konular: takip et → gizle → sıfırla döngüsü
+function topicState(id) {
+  return prefs.followTags.includes(id) ? 'follow' : prefs.muteTags.includes(id) ? 'mute' : '';
+}
+function cycleTopic(id) {
+  const st = topicState(id);
+  prefs.followTags = prefs.followTags.filter((x) => x !== id);
+  prefs.muteTags = prefs.muteTags.filter((x) => x !== id);
+  if (st === '') prefs.followTags.push(id);
+  else if (st === 'follow') prefs.muteTags.push(id);
+  savePrefs();
+  haptic();
+  return topicState(id);
+}
+
+function renderTopics() {
+  const q = lower($('topic-search').value || '');
+  const counts = new Map();
+  for (const i of allNews) for (const t of i.tags) counts.set(t, (counts.get(t) || 0) + 1);
+  const box = $('topic-groups');
+  box.innerHTML = '';
+  for (const [g, gLabel] of Object.entries(tagGroups)) {
+    const items = Object.values(tagMap).filter((t) => t.group === g && (!q || lower(t.label).includes(q)));
+    if (!items.length) continue;
+    const h = document.createElement('h3');
+    h.textContent = gLabel;
+    const wrap = document.createElement('div');
+    wrap.className = 'chips';
+    for (const t of items) {
+      const b = document.createElement('button');
+      const st = topicState(t.id);
+      b.className = 'topic' + (st ? ' ' + st : '');
+      b.innerHTML = `${t.emoji} ${esc(t.label)}<span class="n">${counts.get(t.id) || 0}</span>`;
+      b.onclick = () => {
+        const ns = cycleTopic(t.id);
+        b.className = 'topic' + (ns ? ' ' + ns : '');
+        void b.offsetWidth;
+        b.classList.add('bump');
+        toast(ns === 'follow' ? `${t.label} takip ediliyor` : ns === 'mute' ? `${t.label} gizlendi` : `${t.label} sıfırlandı`);
+        buildView();
+      };
+      wrap.appendChild(b);
+    }
+    box.append(h, wrap);
+  }
+}
+
+function renderSources() {
+  const counts = new Map();
+  for (const i of allNews) counts.set(i.sourceId, (counts.get(i.sourceId) || 0) + 1);
+  const box = $('source-list');
+  box.innerHTML = '';
+  for (const [lang, label] of Object.entries(LANGS)) {
+    const h = document.createElement('h3');
+    h.textContent = label;
+    box.appendChild(h);
+    for (const s of sources.filter((x) => x.lang === lang)) {
+      const row = document.createElement('label');
+      row.className = 'src-row';
+      const on = !prefs.muteSources.includes(s.id);
+      row.innerHTML = `<span class="src-dot" style="--cat:${catColor(s.category)}"></span>
+        <span class="src-name">${esc(s.name)}<small>${esc(categories[s.category] || '')} · ${counts.get(s.id) || 0} haber</small></span>
+        <input type="checkbox" ${on ? 'checked' : ''}><span class="switch"></span>`;
+      row.querySelector('input').onchange = (e) => {
+        prefs.muteSources = e.target.checked ? prefs.muteSources.filter((x) => x !== s.id) : [...prefs.muteSources, s.id];
+        savePrefs(); haptic(); buildView();
+      };
+      box.appendChild(row);
+    }
+  }
+}
+
+function openDrawer() { renderTopics(); renderSources(); $('drawer').classList.add('open'); $('drawer-backdrop').classList.add('open'); document.body.classList.add('locked'); }
 function closeDrawer() { $('drawer').classList.remove('open'); $('drawer-backdrop').classList.remove('open'); document.body.classList.remove('locked'); }
 
-// ---------- İlk açılış ----------
+// ---------- İlk açılış (2 adım) ----------
 function showOnboarding() {
   const ob = $('onboard');
   ob.hidden = false;
   const list = $('onboard-cats');
-  const go = $('onboard-go');
+  const next = $('onboard-next');
   list.innerHTML = '';
   for (const [id, label] of Object.entries(categories)) {
     list.appendChild(chip(`${CAT_EMOJI[id] || ''} ${esc(label)}`, prefs.categories.includes(id), catColor(id), (c) => {
       prefs.categories = prefs.categories.includes(id) ? prefs.categories.filter((x) => x !== id) : [...prefs.categories, id];
       c.classList.toggle('on');
-      go.disabled = !prefs.categories.length;
-      go.textContent = prefs.categories.length ? `Başlayalım (${prefs.categories.length})` : 'Başlayalım';
+      next.disabled = !prefs.categories.length;
+      next.textContent = prefs.categories.length ? `Devam (${prefs.categories.length})` : 'Devam';
     }));
   }
-  go.disabled = !prefs.categories.length;
-  go.onclick = () => {
+  next.disabled = !prefs.categories.length;
+  next.onclick = () => {
+    $('onboard-step1').hidden = true;
+    $('onboard-step2').hidden = false;
+    const groups = [...new Set(prefs.categories.flatMap((c) => CAT_GROUPS[c] || []))];
+    const tl = $('onboard-tags');
+    tl.innerHTML = '';
+    for (const t of Object.values(tagMap).filter((x) => groups.includes(x.group))) {
+      tl.appendChild(chip(`${t.emoji} ${esc(t.label)}`, prefs.followTags.includes(t.id), null, (c) => {
+        prefs.followTags = prefs.followTags.includes(t.id) ? prefs.followTags.filter((x) => x !== t.id) : [...prefs.followTags, t.id];
+        c.classList.toggle('on');
+      }));
+    }
+  };
+  $('onboard-go').onclick = () => {
     prefs.onboarded = true; savePrefs(); renderPrefs(); buildView();
+    lastFollow = prefs.followTags.join();
     ob.classList.add('leaving');
     setTimeout(() => { ob.hidden = true; ob.classList.remove('leaving'); toast('Akışın hazır ✨'); }, 480);
   };
@@ -453,11 +644,15 @@ function showSkeletons() {
 
 async function loadNews(force = false) {
   if (!allNews.length) showSkeletons();
-  const res = await fetch('/api/news?limit=500' + (force ? '&refresh=1' : ''));
+  const res = await fetch('/api/news?limit=3000' + (force ? '&refresh=1' : ''));
   const { items } = await res.json();
+  // Arama ve kelime eşleştirmesi için metni bir kez hazırla
+  for (const i of items) { i._text = lower(`${i.title} ${i.summary}`); i.tags ||= []; }
+  for (const s of saved.values()) { s._text ||= lower(`${s.title} ${s.summary}`); s.tags ||= []; }
   const before = new Set(allNews.map((i) => i.link));
   const fresh = allNews.length ? items.filter((i) => !before.has(i.link)).length : 0;
   allNews = items;
+  lastFollow = prefs.followTags.join();
   buildView();
   return fresh;
 }
@@ -474,6 +669,38 @@ function bindEvents() {
     if (e.key === 'Escape') { closeSheet(); closeDrawer(); $('search').blur(); }
   });
 
+  $('time-seg').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    haptic();
+    $('time-seg').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    timeRange = b.dataset.v;
+    moveSegThumb();
+    buildView();
+  });
+  $('sort-btn').onclick = () => {
+    prefs.sort = prefs.sort === 'smart' ? 'new' : 'smart';
+    savePrefs(); haptic(); buildView();
+  };
+  $('tag-strip').addEventListener('click', (e) => {
+    const b = e.target.closest('.tag-chip');
+    if (b) toggleActiveTag(b.dataset.t);
+  });
+  $('clear-filters').onclick = () => {
+    activeTags = []; timeRange = 'all'; query = ''; $('search').value = '';
+    $('time-seg').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x.dataset.v === 'all'));
+    moveSegThumb(); haptic(); buildView();
+  };
+
+  $('drawer-tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    haptic();
+    $('drawer-tabs').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('on', p.dataset.p === b.dataset.p));
+  });
+  $('topic-search').addEventListener('input', renderTopics);
+
   $('refresh').onclick = async () => {
     const b = $('refresh');
     b.classList.remove('spin'); b.offsetWidth; b.classList.add('spin');
@@ -489,7 +716,6 @@ function bindEvents() {
       : matchMedia('(prefers-color-scheme: dark)').matches;
     const next = dark ? 'light' : 'dark';
     const apply = () => { document.documentElement.dataset.theme = next; store.set('haber.theme', next); };
-    // Destekleyen tarayıcılarda tema dairesel bir geçişle yayılır
     if (document.startViewTransition && !reduceMotion) {
       const r = $('theme').getBoundingClientRect();
       document.documentElement.style.setProperty('--vt-x', `${r.left + r.width / 2}px`);
@@ -513,20 +739,26 @@ function bindEvents() {
   });
 
   $('to-top').onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-  let ticking = false;
+
+  // Kaydırma: tek rAF içinde güncelle; kaydırırken üzerine gelme efektlerini kapat (takılmayı önler)
+  let ticking = false, scrollTimer;
+  const root = document.documentElement;
   addEventListener('scroll', () => {
+    if (!root.classList.contains('is-scrolling')) root.classList.add('is-scrolling');
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => root.classList.remove('is-scrolling'), 160);
     if (ticking) return;
     ticking = true;
     requestAnimationFrame(() => {
       const y = scrollY;
-      const max = document.documentElement.scrollHeight - innerHeight;
+      const max = root.scrollHeight - innerHeight;
       $('progress').style.transform = `scaleX(${max > 0 ? y / max : 0})`;
       $('chrome').classList.toggle('scrolled', y > 8);
       $('to-top').classList.toggle('show', y > 900);
       ticking = false;
     });
   }, { passive: true });
-  addEventListener('resize', moveIndicator);
+  addEventListener('resize', () => { moveIndicator(); moveSegThumb(); });
 }
 
 // ---------- Başlat ----------
@@ -536,13 +768,18 @@ async function init() {
   try {
     const meta = await fetch('/api/meta').then((r) => r.json());
     categories = meta.categories;
+    tagGroups = meta.tagGroups || {};
+    tagMap = Object.fromEntries((meta.tags || []).map((t) => [t.id, t]));
+    sources = meta.sources || [];
     renderTabs();
     renderPrefs();
+    moveSegThumb();
     if (!prefs.onboarded) showOnboarding();
     await loadNews();
-  } catch {
+  } catch (err) {
+    console.error(err);
     $('feed').innerHTML = '<div class="status"><span class="big-emoji">📡</span>Haberler alınamadı. Sunucu çalışıyor mu?</div>';
   }
-  document.fonts?.ready.then(moveIndicator);
+  document.fonts?.ready.then(() => { moveIndicator(); moveSegThumb(); });
 }
 init();
