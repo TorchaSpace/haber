@@ -18,6 +18,10 @@ Dünyadaki haberleri tek çatı altında toplayan, kişisel zevklerine göre fil
 
 Node.js 18 veya üstü gerekir.
 
+**En kolayı:** klasördeki `Haberi Aç.command` dosyasına çift tıkla. Sunucu başlar ve tarayıcıda açılır. Kapatmak için açılan Terminal penceresini kapat.
+
+Ya da terminalden:
+
 ```bash
 npm install
 npm start
