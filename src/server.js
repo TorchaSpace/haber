@@ -6,6 +6,7 @@ import { sources, categories } from './sources.js';
 import { getArticle } from './article.js';
 import { tagList, tagGroups } from './tags.js';
 import { countryList } from './countries.js';
+import { getOnThisDay } from './onthisday.js';
 
 const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -37,6 +38,11 @@ export function createApp() {
 
     res.json({ count: items.length, items: items.slice(0, limit) });
   });
+  // Bugün tarihte (Vikipedi)
+  app.get('/api/onthisday', async (_req, res) => {
+    try { res.json({ items: await getOnThisDay() }); } catch { res.json({ items: [] }); }
+  });
+
   // Haberin tam metni: ?url=https://...
   app.get('/api/article', async (req, res) => {
     const url = String(req.query.url || '');

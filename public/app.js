@@ -260,6 +260,7 @@ function buildView() {
 
   items = items.filter(inTime);
   if (activeCountry) items = items.filter((i) => (i.countries || []).includes(activeCountry));
+  if (typeof goodOnly !== 'undefined' && goodOnly) items = items.filter((i) => i.mood === 'good');
   if (query) {
     const q = lower(query);
     items = items.filter((i) => i._text.includes(q) || lower(i.source).includes(q) || i.tags.some((t) => lower(tagMap[t]?.label || '').includes(q)));
@@ -283,6 +284,7 @@ function buildView() {
   $('feed').innerHTML = '';
   renderGreeting();
   renderSortBtn();
+  window.onViewBuilt?.();
 
   if (!view.length) {
     const empty = activeTab === 'saved' && !activeTags.length
@@ -305,6 +307,11 @@ function renderMore() {
     let size = '';
     if (n === 0 && item.image && !query && !activeTags.length) size = 'hero';
     else if (n % 9 === 5 && item.image && innerWidth > 700) size = 'wide';
+    // Akışın arasına "bugün tarihte" kartları
+    if ((n === 6 || n === 18) && typeof historyCard === 'function' && (activeTab === 'foryou' || activeTab === 'all') && !activeTags.length && !query && !activeCountry) {
+      const h = historyCard(n === 6 ? 0 : 1);
+      if (h) frag.appendChild(h);
+    }
     frag.appendChild(cardEl(item, size, idx));
   });
   shown += slice.length;
@@ -432,6 +439,7 @@ function finishReading() {
   const dwell = (Date.now() - sheetOpenedAt) / 1000;
   learn(sheetItem, dwell > 20 ? 2.5 : dwell > 6 ? 1 : 0.3);
   logRead(sheetItem, dwell);
+  if (typeof bump === 'function') { if (sheetItem.mood === 'good') bump('good'); else checkBadges(); }
 }
 
 function otherEyes(item) {
@@ -452,6 +460,7 @@ function openSheet(item, card) {
   finishReading();
   sheetItem = item;
   sheetOpenedAt = Date.now();
+  if (item.storySize > 1 && typeof bump === 'function') bump('eyes');
   haptic();
   readSet.add(item.link); saveRead();
   setTimeout(() => card?.classList.add('read'), 400);
@@ -573,6 +582,7 @@ function toggleFollow(item) {
   followed.unshift({ id: item.storyId || item.link, title: item.title, keys: item.keys || [], created: Date.now(), lastSeen: Date.now(), items: members.map(slim) });
   saveFollowed();
   toast('🔔 Takipte: yeni gelişmeler burada ve bildirimle gelecek');
+  if (typeof checkBadges === 'function') checkBadges();
   try { if (window.Notification && Notification.permission === 'default') Notification.requestPermission(); } catch {}
   renderTabs();
   return true;

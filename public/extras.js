@@ -74,6 +74,7 @@ function openSwipe() {
     const item = deck[idx];
     if (!card || !item) return;
     haptic(dir === 'right' ? 14 : 8);
+    if (typeof bump === 'function') bump('swipes');
     if (dir === 'right') { if (!saved.has(item.link)) toggleSave(item, null); kept++; }
     if (dir === 'left') learn(item, -0.8);
     const fly = { right: 'translate(140%, -10%) rotate(24deg)', left: 'translate(-140%, -10%) rotate(-24deg)', up: 'translate(0, -130%) scale(.9)' }[dir];
@@ -250,6 +251,4 @@ function openWeek() {
   el.addEventListener('click', (e) => { if (e.target === el) el.querySelector('[data-close]').click(); });
 }
 
-$('open-swipe').onclick = () => { haptic(); openSwipe(); };
 $('open-map').onclick = () => { haptic(); openMap(); };
-$('open-week').onclick = () => { haptic(); openWeek(); };

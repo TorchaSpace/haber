@@ -14,6 +14,12 @@ Dünyadaki haberleri tek çatı altında toplayan, kişisel zevklerine göre fil
 - **Hızlı ayıkla:** kartları sağa (kaydet), sola (geç), yukarı (oku) kaydır
 - **Dünya haritası ve haber pasaportu:** ülkelere göre haberler, okuduğun ülkeler damgalanır (`src/countries.js`)
 - **Haftan:** haftalık okuma özeti, unvanın, serin
+- **Story'ler:** her kategori için günün öne çıkanları, otomatik ilerleyen tam ekran hikayeler
+- **Günlük baskı:** sabah ve akşam, gazete gibi sayfa çevrilen ve biten bir özet
+- **Günün testi** ve **"Bu başlık kimin?"** tahmin oyunu
+- **İyi haber modu:** tek dokunuşla sadece olumlu haberler (`src/mood.js`)
+- **Bugün tarihte:** akışın arasında Vikipedi'den tarihte bugün kartları
+- **Rozetler:** okuma alışkanlıklarına göre kazanılan 17 rozet
 - **Menü çubuğu:** Mac menü çubuğunda şu an en çok konuşulan haberler döner
 - Kategori ve dil tercihine göre filtreleme
 - İlgi alanı anahtar kelimeleri: eşleşen haberler en üstte, vurgulu gösterilir
