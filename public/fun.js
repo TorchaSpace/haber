@@ -438,11 +438,15 @@ function openFun() {
   if (window.LABS) {
     const seen = new Set(store.get('haber.labsSeen', []));
     pop.insertAdjacentHTML('afterbegin', '<div class="fun-sec">Gazete ve oyunlar</div>');
+    // Sesli bülten menünün en üstünde, tek dokunuşla
+    const feat = window.LABS.find((l) => l.id === 'bulletin');
+    if (feat) pop.insertAdjacentHTML('afterbegin', `<button class="fun-tile lab feature" data-lab="${feat.id}"><span>${feat.emoji}</span><div><b>${feat.title}</b><small>${esc(evening ? 'Akşam bülteni, 3 dakikada dinle' : 'Sabah bülteni, 3 dakikada dinle')}</small></div>${seen.has(feat.id) ? '' : '<em class="new-tag">Yeni</em>'}</button>`);
+    const rest = window.LABS.filter((l) => l !== feat);
     let group = '';
     const sizes = {};
-    window.LABS.forEach((l) => { sizes[l.group] = (sizes[l.group] || 0) + 1; });
+    rest.forEach((l) => { sizes[l.group] = (sizes[l.group] || 0) + 1; });
     const done = {};
-    pop.insertAdjacentHTML('beforeend', window.LABS.map((l, k) => {
+    pop.insertAdjacentHTML('beforeend', rest.map((l, k) => {
       const head = l.group && l.group !== group ? `<div class="fun-sec">${l.group}</div>` : '';
       group = l.group || group;
       done[l.group] = (done[l.group] || 0) + 1;

@@ -1207,3 +1207,10 @@ input, select, textarea { font-size: max(16px, 1em); } /* iOS'ta odaklanınca ya
 .ask-form { margin-top: 0; }
 @media (max-width: 520px) { .md-opt { padding: 12px 4px; } .md-img { width: 56px; height: 56px; } .bl-hero { padding: 12px; } .bl-play { width: 56px; height: 56px; } .ag-day { width: 52px; } }
 @media (prefers-reduced-motion: reduce) { .ag-ev, .md-item, .cn-card, .ask-msg, .bl-play.on { animation: none !important; } }
+
+.fun-tile.feature { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 14px; background: linear-gradient(135deg, var(--accent), #ff8a3d); color: #fff; }
+.fun-tile.feature span { font-size: 2rem; }
+.fun-tile.feature div { display: flex; flex-direction: column; gap: 2px; }
+.fun-tile.feature small { color: rgba(255,255,255,.85); }
+.fun-tile.feature .new-tag { background: #fff; color: var(--accent); }
+.fun-tile.feature:hover { background: linear-gradient(135deg, var(--accent), #ff8a3d); filter: brightness(1.06); }
