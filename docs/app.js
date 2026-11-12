@@ -87,12 +87,25 @@ const lower = (s) => String(s).toLocaleLowerCase('tr');
 const haptic = (ms = 8) => { try { navigator.vibrate?.(ms); } catch {} };
 const tagLabel = (id) => (tagMap[id] ? `${tagMap[id].emoji} ${tagMap[id].label}` : id);
 
-function toast(msg) {
+function toast(msg, action) {
+  const box = $('toasts');
+  // Üst üste yığılmasın: en fazla 2 bildirim, aynı mesaj tekrarlanmaz
+  [...box.children].forEach((t) => { if (t.dataset.msg === msg) t.remove(); });
+  while (box.children.length >= 2) box.firstElementChild.remove();
   const el = document.createElement('div');
   el.className = 'toast';
-  el.textContent = msg;
-  $('toasts').appendChild(el);
-  setTimeout(() => { el.classList.add('out'); el.addEventListener('animationend', () => el.remove()); }, 2200);
+  el.dataset.msg = msg;
+  el.setAttribute('role', 'status');
+  el.append(msg);
+  const hide = () => { if (el.classList.contains('out')) return; el.classList.add('out'); el.addEventListener('animationend', () => el.remove()); setTimeout(() => el.remove(), 600); };
+  if (action) {
+    const b = document.createElement('button');
+    b.className = 'toast-action'; b.textContent = action.label;
+    b.onclick = () => { action.run(); hide(); };
+    el.appendChild(b);
+  }
+  box.appendChild(el);
+  setTimeout(hide, action ? 4200 : 2200);
 }
 
 function matchedKeywords(item) {
@@ -292,7 +305,11 @@ function buildView() {
       : query ? ['🔎', 'Aramana uyan haber bulunamadı.']
       : activeTags.length || timeRange !== 'all' ? ['🧐', 'Bu filtrelere uyan haber yok. Bir etiketi kaldırmayı ya da zamanı genişletmeyi dene.']
       : ['🌤️', 'Tercihlerine uyan haber yok. İlgi alanlarını genişletebilirsin.'];
-    $('feed').innerHTML = `<div class="status"><span class="big-emoji">${empty[0]}</span>${empty[1]}</div>`;
+    const filtered = activeTab !== 'saved' && (query || activeTags.length || timeRange !== 'all' || activeCountry);
+    const cta = filtered ? '<button class="status-btn" data-act="clear">Filtreleri temizle</button>'
+      : activeTab === 'saved' ? '<button class="status-btn" data-act="all">Haberlere göz at</button>'
+      : '<button class="status-btn" data-act="prefs">İlgi alanlarını aç</button>';
+    $('feed').innerHTML = `<div class="status"><span class="big-emoji">${empty[0]}</span><p>${empty[1]}</p>${cta}</div>`;
     return;
   }
   renderMore();
@@ -404,7 +421,7 @@ function toggleSave(item, btn) {
   if (saved.has(item.link)) {
     saved.delete(item.link);
     btn?.classList.remove('on');
-    toast('Kaydedilenlerden çıkarıldı');
+    toast('Kaydedilenlerden çıkarıldı', { label: 'Geri al', run: () => { saved.set(item.link, item); saveSaved(); btn?.classList.add('on'); if (activeTab === 'saved') buildView(); refreshSavedTab(); } });
   } else {
     saved.set(item.link, item);
     learn(item, 2);
@@ -413,6 +430,9 @@ function toggleSave(item, btn) {
   }
   if (btn) { btn.classList.remove('pop'); btn.offsetWidth; btn.classList.add('pop'); }
   saveSaved();
+  refreshSavedTab();
+}
+function refreshSavedTab() {
   const tab = $('tabs').querySelector('.tab[data-id="saved"]');
   if (tab) { tab.innerHTML = 'Kaydedilenler' + (saved.size ? `<span class="count">${saved.size}</span>` : ''); moveIndicator(); }
 }
@@ -910,7 +930,10 @@ function bindEvents() {
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === '/' && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); $('search').focus(); }
-    if (e.key === 'Escape') { closeSheet(); closeDrawer(); $('search').blur(); }
+    if (e.key === 'Escape') {
+      if (document.activeElement === $('search') && $('search').value) { $('search').value = ''; query = ''; buildView(); return; }
+      closeSheet(); closeDrawer(); $('search').blur();
+    }
   });
 
   $('time-seg').addEventListener('click', (e) => {
@@ -1026,7 +1049,8 @@ async function init() {
     if (updateFollowed(true)) renderTabs();
   } catch (err) {
     console.error(err);
-    $('feed').innerHTML = '<div class="status"><span class="big-emoji">📡</span>Haberler alınamadı. Sunucu çalışıyor mu?</div>';
+    const off = navigator.onLine === false;
+    $('feed').innerHTML = `<div class="status"><span class="big-emoji">${off ? '✈️' : '📡'}</span><p>${off ? 'Çevrimdışısın. Bağlanınca kaldığın yerden devam ederiz.' : 'Haberler alınamadı. Sunucu çalışıyor mu?'}</p><button class="status-btn" data-act="retry">Tekrar dene</button></div>`;
   }
   document.fonts?.ready.then(() => { moveIndicator(); moveSegThumb(); });
 }

@@ -1214,3 +1214,104 @@ input, select, textarea { font-size: max(16px, 1em); } /* iOS'ta odaklanınca ya
 .fun-tile.feature small { color: rgba(255,255,255,.85); }
 .fun-tile.feature .new-tag { background: #fff; color: var(--accent); }
 .fun-tile.feature:hover { background: linear-gradient(135deg, var(--accent), #ff8a3d); filter: brightness(1.06); }
+
+/* =====================================================================
+   Premium cilalama katmanı
+   Tek hareket dili: çıkışlar yumuşak yavaşlar (--smooth), dokunuşlar yaylanır (--spring)
+   ===================================================================== */
+:root { --dur-1: .18s; --dur-2: .32s; --dur-3: .55s; --ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+
+html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
+body { text-rendering: optimizeLegibility; font-feature-settings: 'cv11', 'ss01'; overflow-x: hidden; }
+::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+
+/* Tipografi: başlıklar dengeli kırılır, paragraflar yetim satır bırakmaz */
+h1, h2, h3, .card h3 { text-wrap: balance; }
+.card p, .sheet p, .status p { text-wrap: pretty; }
+.count, .meta, time, .tab { font-variant-numeric: tabular-nums; }
+
+/* Klavye odağı: her etkileşimli öğede tutarlı halka, fare tıklamasında görünmez */
+:focus { outline: none; }
+:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 12px; }
+.card:focus-visible, .card.kb { box-shadow: var(--ring), var(--shadow-sm); }
+.search input:focus-visible { box-shadow: none; }
+
+/* Kartlar: daha sakin kalkış, basınca derinlik */
+.card { will-change: auto; }
+.card.in:hover { transform: translateY(-4px); }
+.card.in:active { transform: scale(.985); }
+@media (hover: none) { .card.in:hover { transform: none; } .card.in:hover::after { opacity: 0; } }
+.card.read { opacity: .62; }
+.card[data-stagger="0"] { transition-delay: 0ms; }
+.card[data-stagger="1"] { transition-delay: 40ms; }
+.card[data-stagger="2"] { transition-delay: 80ms; }
+.card[data-stagger="3"] { transition-delay: 120ms; }
+.card[data-stagger="4"] { transition-delay: 160ms; }
+.card[data-stagger="5"] { transition-delay: 200ms; }
+.card.in:hover, .card.in:active { transition-delay: 0ms; }
+
+/* İskelet: gerçek kartla aynı ölçü, kademeli beliriş */
+.skeleton { animation: skIn .5s var(--smooth) both; }
+.skeleton:nth-child(2) { animation-delay: .04s; } .skeleton:nth-child(3) { animation-delay: .08s; }
+.skeleton:nth-child(4) { animation-delay: .12s; } .skeleton:nth-child(5) { animation-delay: .16s; }
+.skeleton:nth-child(6) { animation-delay: .2s; }  .skeleton:nth-child(7) { animation-delay: .24s; }
+@keyframes skIn { from { opacity: 0; transform: translateY(10px); } }
+.skeleton .sk-media { aspect-ratio: 16/9; }
+.skeleton.hero { border-radius: var(--radius); }
+
+/* Boş ve hata durumları */
+.status { padding: 72px 20px; animation: rise .6s var(--smooth) both; max-width: 420px; margin: 0 auto; }
+.status p { margin: 0 0 18px; line-height: 1.55; }
+.status-btn {
+  padding: 11px 20px; border-radius: 12px; font-weight: 600; font-size: .9rem;
+  background: var(--surface); color: var(--text);
+  transition: transform .35s var(--spring), background .2s, opacity .2s;
+}
+.status-btn:hover { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.status-btn:disabled { opacity: .6; pointer-events: none; }
+
+/* Çevrimdışı şeridi */
+.net-bar {
+  position: fixed; left: 50%; top: 10px; z-index: 80; transform: translate(-50%, -150%);
+  padding: 9px 16px; border-radius: 999px; font-size: .82rem; font-weight: 600;
+  background: var(--text); color: var(--bg); box-shadow: var(--shadow-lg);
+  transition: transform .5s var(--spring); pointer-events: none; max-width: calc(100vw - 32px);
+}
+.net-bar.show { transform: translate(-50%, 0); }
+
+/* Bildirimler: geri al eylemi, cam hissi */
+.toasts { bottom: max(24px, env(safe-area-inset-bottom)); }
+.toast { display: flex; align-items: center; gap: 14px; pointer-events: auto; }
+.toast-action { color: var(--accent); font-weight: 700; padding: 2px 4px; margin: -2px -4px -2px 0; border-radius: 8px; }
+.toast-action:hover { text-decoration: underline; }
+
+/* Okuma paneli: daha derin perde, bulanıklık yalnızca açıkken */
+.sheet-backdrop.open, .drawer-backdrop.open { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.sheet { transition: transform .55s cubic-bezier(.32, .94, .6, 1); will-change: transform; }
+.sheet-body { scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+
+/* Üst çubuk: kaydırınca ince gölge, yumuşak geçiş */
+.chrome { transition: box-shadow var(--dur-2); }
+
+/* Arama: odakta hafif büyür */
+.search { transition: max-width .45s var(--smooth), box-shadow var(--dur-2), background var(--dur-2); }
+
+/* Sekme ve filtre geçişleri aynı sürede */
+.tab, .chip, .tag-chip, .seg button, .sort-btn, .clear-btn { transition: background var(--dur-2) var(--smooth), color var(--dur-2) var(--smooth), transform .35s var(--spring), opacity var(--dur-2); }
+.tab-indicator, .seg-thumb { transition-timing-function: var(--smooth); }
+
+/* Kaydırma performansı */
+.feed { contain: layout; }
+.card-media img { backface-visibility: hidden; }
+.tabs, .tag-strip, .filterbar-inner { overscroll-behavior-x: contain; }
+.drawer, .sheet-body { overscroll-behavior: contain; }
+
+/* Ince kaydırma çubuğu */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 40%, transparent) transparent; }
+.tabs, .tag-strip, .filterbar-inner { scrollbar-width: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .skeleton, .status { animation: none; }
+  .net-bar { transition: none; }
+}
