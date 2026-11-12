@@ -8,11 +8,11 @@ const GOOD = [
   'restored', 'new species', 'yeni tür', 'born', 'baby', 'launch', 'fırlatıldı', 'festival', 'kutlama', 'inspir', 'joy',
 ];
 const BAD = [
-  'öldü', 'ölü', 'hayatını kaybet', 'yaralı', 'saldırı', 'savaş', 'deprem', 'kaza', 'cinayet', 'öldürül', 'tutuklan', 'gözaltı',
-  'yangın', 'sel', 'patlama', 'bomba', 'terör', 'kriz', 'skandal', 'iflas', 'işten çıkar', 'zam', 'enflasyon', 'istifa', 'dava',
+  'öldü', 'ölü', 'hayatını kaybet', 'yaralı', 'saldırı', 'savaş', 'deprem', 'kazada', 'kazası', 'kaza yap', 'kaza geçir', 'cinayet', 'öldürül', 'tutuklan', 'gözaltı',
+  'yangın', 'sel felaket', 'selde', 'sel bask', 'sel sular', 'patlama', 'bomba', 'terör', 'kriz', 'skandal', 'iflas', 'işten çıkar', 'zam geldi', 'zamlandı', 'zammı', 'zam yap', 'zamlı', 'enflasyon', 'istifa', 'dava',
   'tehdit', 'şiddet', 'taciz', 'intihar', 'hastalık', 'salgın', 'dies', 'died', 'dead', 'death', 'killed', 'kill', 'war', 'attack',
   'crash', 'murder', 'shooting', 'shot', 'crisis', 'scandal', 'arrest', 'charged', 'lawsuit', 'fraud', 'flood', 'fire', 'strike',
-  'protest', 'threat', 'abuse', 'cancer', 'outbreak', 'layoff', 'sued', 'ban', 'fears', 'warn', 'collapse', 'injur', 'victim',
+  'protest', 'threat', 'abuse', 'cancer', 'outbreak', 'layoff', 'sued', 'banned', 'ban on', 'fears', 'warn', 'collapse', 'injur', 'victim',
   'spy', 'affair', 'homicide', 'torso', 'body found', 'police', 'polis', 'investigat', 'soruşturma', 'düştü', 'kaçırıl', 'hijack', 'bomb', 'terror', 'oust', 'fired', 'hoax', 'sanction', 'tariff', 'decline', 'loss', 'missile', 'drone', 'ceasefire', 'genocide',
 ];
 const re = (list) => new RegExp(`(?<![\\p{L}])(${list.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'u');

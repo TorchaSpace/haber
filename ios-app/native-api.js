@@ -5,6 +5,7 @@ import { countryList, detectCountries } from './countries.js';
 import { clusterStories } from './stories.js';
 import { moodOf } from './mood.js';
 import { getOnThisDay } from './onthisday.js';
+import { getPast } from './past.js';
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 const CACHE_MS = 10 * 60 * 1000;
@@ -125,6 +126,13 @@ export async function handle(u) {
     }
     if (u.pathname === '/api/onthisday') {
       try { return json({ items: await getOnThisDay() }); } catch { return json({ items: [] }); }
+    }
+    if (u.pathname === '/api/past') {
+      const term = (q.get('q') || '').trim().slice(0, 80);
+      if (!term) return json({ error: 'Konu gerekli' }, 400);
+      const fetchText = (url) => get(url, 12000).then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); });
+      try { return json(await getPast({ q: term, ago: q.get('ago'), lang: q.get('lang') === 'en' ? 'en' : 'tr' }, fetchText)); }
+      catch (err) { return json({ error: err.message, items: [] }, 502); }
     }
     if (u.pathname === '/api/article') {
       const url = q.get('url') || '';

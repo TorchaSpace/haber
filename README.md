@@ -20,6 +20,12 @@ Dünyadaki haberleri tek çatı altında toplayan, kişisel zevklerine göre fil
 - **İyi haber modu:** tek dokunuşla sadece olumlu haberler (`src/mood.js`)
 - **Bugün tarihte:** akışın arasında Vikipedi'den tarihte bugün kartları
 - **Rozetler:** okuma alışkanlıklarına göre kazanılan 17 rozet
+- **Keşif atölyesi** (Keşfet menüsünde, `public/labs.js`), her biri tek dokunuşla açılır ve ilk açılışta kısa yönlendirme gösterir:
+  - **Sonucu tahmin et:** başlığın olanı anlatan kısmı gizli; iyi mi kötü mü bitti, tahmin et ve karşılaştır
+  - **Zaman makinesi:** bir konunun 1, 5 ya da 10 yıl önce ve bugün nasıl yazıldığı yan yana (`/api/past`, `src/past.js`)
+  - **Kelime avı:** başlıktaki önemli terimi harflerle tamamla, kısa Vikipedi açıklamasıyla öğren, kelime defterine ekle
+  - **Görüş haritası:** okuduğun kaynaklar yerel ↔ küresel ve iyimser ↔ kötümser eksenlerinde; dengeleyecek farklı bir göz önerisi
+  - **Konu tuvali:** ilgi alanların sürüklenebilir kartlarda, aynı haberlerde buluşan konular çizgiyle bağlı
 - **Menü çubuğu:** Mac menü çubuğunda şu an en çok konuşulan haberler döner
 - Kategori ve dil tercihine göre filtreleme
 - İlgi alanı anahtar kelimeleri: eşleşen haberler en üstte, vurgulu gösterilir

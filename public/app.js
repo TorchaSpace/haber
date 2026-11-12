@@ -47,7 +47,7 @@ function learn(item, w) {
 // Okuma günlüğü (haftalık özet için)
 const readLog = store.get('haber.log', []);
 function logRead(item, dwell) {
-  readLog.push({ t: Date.now(), link: item.link, tags: item.tags || [], cat: item.category, src: item.source, countries: item.countries || [], dwell: Math.round(dwell) });
+  readLog.push({ t: Date.now(), link: item.link, tags: item.tags || [], cat: item.category, src: item.source, srcId: item.sourceId, lang: item.lang, mood: item.mood, countries: item.countries || [], dwell: Math.round(dwell) });
   while (readLog.length > 3000) readLog.shift();
   store.set('haber.log', readLog);
 }

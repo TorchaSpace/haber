@@ -14,7 +14,7 @@ fs.mkdirSync(path.join(www, 'lib'), { recursive: true });
 fs.mkdirSync(path.join(www, 'vendor'), { recursive: true });
 
 // Sunucu ile ortak saf mantık (kaynaklar, etiketler, ülkeler, hikaye gruplama, ruh hali, tarihte bugün)
-for (const f of ['sources', 'tags', 'countries', 'stories', 'mood', 'onthisday']) {
+for (const f of ['sources', 'tags', 'countries', 'stories', 'mood', 'onthisday', 'past']) {
   let code = fs.readFileSync(path.join(src, f + '.js'), 'utf8');
   if (f === 'stories') {
     // node:crypto yerine tarayıcıda çalışan basit özet

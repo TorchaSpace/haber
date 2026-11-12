@@ -434,12 +434,19 @@ function openFun() {
     ['swipe', '🃏', 'Hızlı ayıkla', 'Kaydır, ayıkla'],
     ['week', '📊', 'Haftan', 'Okuma özetin'],
   ].map(([id, e, t, d], k) => `<button class="fun-tile" data-f="${id}" style="animation-delay:${k * 35}ms"><span>${e}</span><b>${t}</b><small>${d}</small></button>`).join('');
+  // Keşif atölyesi (labs.js): beş mekanik, her biri tek dokunuşla açılır
+  if (window.LABS) {
+    const seen = new Set(store.get('haber.labsSeen', []));
+    pop.insertAdjacentHTML('afterbegin', '<div class="fun-sec">Her gün</div>');
+    pop.insertAdjacentHTML('beforeend', '<div class="fun-sec">Keşif atölyesi</div>' + window.LABS.map((l, k) => `<button class="fun-tile lab" data-lab="${l.id}" style="animation-delay:${(k + 6) * 35}ms"><span>${l.emoji}</span><b>${l.title}</b><small>${esc(l.sub())}</small>${seen.has(l.id) ? '' : '<em class="new-tag">Yeni</em>'}</button>`).join(''));
+  }
 }
-$('open-fun').onclick = (e) => { e.stopPropagation(); openFun(); };
+$('open-fun').onclick = (e) => { e.stopPropagation(); $('open-fun').classList.remove('has-new'); openFun(); };
 $('fun-pop').addEventListener('click', (e) => {
   const b = e.target.closest('.fun-tile');
   if (!b) return;
   $('fun-pop').classList.remove('open');
+  if (b.dataset.lab) return window.openLab(b.dataset.lab);
   ({ edition: openEdition, quiz: openQuiz, kim: openKim, badges: openBadges, swipe: openSwipe, week: openWeek })[b.dataset.f]();
 });
 document.addEventListener('click', (e) => { if (!e.target.closest('#fun-pop')) $('fun-pop').classList.remove('open'); });

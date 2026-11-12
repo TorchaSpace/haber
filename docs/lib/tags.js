@@ -93,14 +93,15 @@ const TAGS = [
 const SHORT = 3;
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const compiled = TAGS.map(([id, label, group, emoji, terms]) => {
+  const words = terms;
   const parts = terms.map((t) => {
     const e = esc(t.toLocaleLowerCase('tr'));
     return t.length <= SHORT ? `(?<![\\p{L}\\p{N}])${e}(?![\\p{L}\\p{N}])` : `(?<![\\p{L}\\p{N}])${e}`;
   });
-  return { id, label, group, emoji, re: new RegExp(parts.join('|'), 'u') };
+  return { id, label, group, emoji, terms: words, re: new RegExp(parts.join('|'), 'u') };
 });
 
-export const tagList = compiled.map(({ id, label, group, emoji }) => ({ id, label, group, emoji }));
+export const tagList = compiled.map(({ id, label, group, emoji, terms }) => ({ id, label, group, emoji, terms }));
 
 // Kategoriden gelen doğal etiketler (kaynağın türü belli olduğunda)
 const CATEGORY_TAGS = { oyun: ['oyunlar'], saglik: ['saglik-arastirma'] };

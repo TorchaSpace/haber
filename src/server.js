@@ -7,6 +7,7 @@ import { getArticle } from './article.js';
 import { tagList, tagGroups } from './tags.js';
 import { countryList } from './countries.js';
 import { getOnThisDay } from './onthisday.js';
+import { getPast } from './past.js';
 
 const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -41,6 +42,16 @@ export function createApp() {
   // Bugün tarihte (Vikipedi)
   app.get('/api/onthisday', async (_req, res) => {
     try { res.json({ items: await getOnThisDay() }); } catch { res.json({ items: [] }); }
+  });
+
+  // Zaman makinesi: bir konunun yıllar önceki haberleri  ?q=enflasyon&ago=5&lang=tr
+  app.get('/api/past', async (req, res) => {
+    const q = String(req.query.q || '').trim().slice(0, 80);
+    if (!q) return res.status(400).json({ error: 'Konu gerekli' });
+    const fetchText = (u) => fetch(u, { headers: { 'User-Agent': 'Mozilla/5.0 HaberApp/0.4' }, signal: AbortSignal.timeout(10000) })
+      .then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); });
+    try { res.json(await getPast({ q, ago: req.query.ago, lang: req.query.lang === 'en' ? 'en' : 'tr' }, fetchText)); }
+    catch (err) { res.status(502).json({ error: err.message, items: [] }); }
   });
 
   // Haberin tam metni: ?url=https://...
