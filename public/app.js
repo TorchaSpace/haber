@@ -712,6 +712,10 @@ function buildViewIfDirty() {
 })();
 
 // ---------- Tercih paneli ----------
+// Art arda çip dokunuşlarını tek yeniden hesaplamada topla (donmayı önler)
+let soonT;
+function buildViewSoon() { clearTimeout(soonT); soonT = setTimeout(() => requestAnimationFrame(() => buildView()), 220); }
+
 function chip(label, on, color, onClick, extra = '') {
   const c = document.createElement('span');
   c.className = 'chip' + (on ? ' on' : '');
@@ -727,7 +731,7 @@ function renderPrefs() {
   for (const [id, label] of Object.entries(categories)) {
     cat.appendChild(chip(`${CAT_EMOJI[id] || ''} ${esc(label)}`, prefs.categories.includes(id), catColor(id), (c) => {
       prefs.categories = prefs.categories.includes(id) ? prefs.categories.filter((x) => x !== id) : [...prefs.categories, id];
-      c.classList.toggle('on'); savePrefs(); buildView();
+      c.classList.toggle('on'); savePrefs(); buildViewSoon();
     }));
   }
   const lang = $('lang-list');
@@ -735,7 +739,7 @@ function renderPrefs() {
   for (const [id, label] of Object.entries(LANGS)) {
     lang.appendChild(chip(esc(label), prefs.langs.includes(id), null, (c) => {
       prefs.langs = prefs.langs.includes(id) ? prefs.langs.filter((x) => x !== id) : [...prefs.langs, id];
-      c.classList.toggle('on'); savePrefs(); buildView();
+      c.classList.toggle('on'); savePrefs(); buildViewSoon();
     }));
   }
   renderKeywords();
@@ -806,7 +810,7 @@ function renderTopics() {
         void b.offsetWidth;
         b.classList.add('bump');
         toast(ns === 'follow' ? `${t.label} takip ediliyor` : ns === 'mute' ? `${t.label} gizlendi` : `${t.label} sıfırlandı`);
-        buildView();
+        buildViewSoon();
       };
       wrap.appendChild(b);
     }
@@ -846,6 +850,7 @@ function closeDrawer() { $('drawer').classList.remove('open'); $('drawer-backdro
 function showOnboarding() {
   const ob = $('onboard');
   ob.hidden = false;
+  document.body.classList.add('onboarding');
   const list = $('onboard-cats');
   const next = $('onboard-next');
   list.innerHTML = '';
@@ -864,18 +869,24 @@ function showOnboarding() {
     const groups = [...new Set(prefs.categories.flatMap((c) => CAT_GROUPS[c] || []))];
     const tl = $('onboard-tags');
     tl.innerHTML = '';
+    const frag = document.createDocumentFragment();
     for (const t of Object.values(tagMap).filter((x) => groups.includes(x.group))) {
-      tl.appendChild(chip(`${t.emoji} ${esc(t.label)}`, prefs.followTags.includes(t.id), null, (c) => {
+      frag.appendChild(chip(`${t.emoji} ${esc(t.label)}`, prefs.followTags.includes(t.id), null, (c) => {
         prefs.followTags = prefs.followTags.includes(t.id) ? prefs.followTags.filter((x) => x !== t.id) : [...prefs.followTags, t.id];
         c.classList.toggle('on');
       }));
     }
+    tl.appendChild(frag);
   };
   $('onboard-go').onclick = () => {
-    prefs.onboarded = true; savePrefs(); renderPrefs(); buildView();
+    prefs.onboarded = true; savePrefs();
     lastFollow = prefs.followTags.join();
+    document.body.classList.remove('onboarding');
+    $('onboard-go').disabled = true;
     ob.classList.add('leaving');
-    setTimeout(() => { ob.hidden = true; ob.classList.remove('leaving'); toast('Akışın hazır ✨'); }, 480);
+    // Önce animasyon başlasın, ağır akış kurulumu bir sonraki boş anda yapılsın
+    requestAnimationFrame(() => setTimeout(() => { showSkeletons(); renderPrefs(); }, 30));
+    setTimeout(() => { ob.hidden = true; ob.classList.remove('leaving'); buildView(); toast('Akışın hazır ✨'); }, 480);
   };
 }
 
@@ -886,7 +897,7 @@ function showSkeletons() {
 }
 
 async function loadNews(force = false) {
-  if (!allNews.length) showSkeletons();
+  if (!allNews.length && prefs.onboarded) showSkeletons();
   const res = await fetch('/api/news?limit=3000' + (force ? '&refresh=1' : ''));
   const { items } = await res.json();
   // Arama ve kelime eşleştirmesi için metni bir kez hazırla
@@ -895,7 +906,8 @@ async function loadNews(force = false) {
   const before = new Set(allNews.map((i) => i.link));
   const fresh = allNews.length ? items.filter((i) => !before.has(i.link)).length : 0;
   applyNews(items);
-  buildView();
+  // İlk açılış sırasında arka planda akış çizilmez: seçimler akıcı kalır, bitince bir kerede çizilir
+  if (prefs.onboarded) buildView();
   return fresh;
 }
 

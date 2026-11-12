@@ -95,6 +95,22 @@ function openAgenda() {
 // =============== 2) Sesli bülten ===============
 const ORD_TR = ['Birinci', 'İkinci', 'Üçüncü', 'Dördüncü', 'Beşinci', 'Altıncı', 'Yedinci', 'Sekizinci', 'Dokuzuncu', 'Onuncu'];
 const ORD_EN = ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
+// Sohbet gibi akan geçişler: "Birinci haber" yerine doğal bağlaçlar
+const LEAD_TR = ['İlk olarak', 'Sırada', 'Bunun ardından', 'Gelelim şuna', 'Bir de şuna bakalım', 'Ayrıca', 'Biraz da', 'Yine gündemde', 'Son olarak bir de', 'Ve'];
+const LEAD_EN = ['First up', 'Next', 'Then', 'Also making news', 'And', 'Meanwhile', 'Also', 'Another one', 'One more thing', 'Finally'];
+// Okunuşu bozan işaretleri temizle (tırnak, parantez, emoji, kaynak eki, bağlantı)
+const speakClean = (t) => String(t).replace(/https?:\/\/\S+/g, ' ').replace(/\s[|–—-]\s[^|–—-]{2,28}$/, '')
+  .replace(/[“”"«»()\[\]*_#|]/g, ' ').replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}]/gu, ' ').replace(/\s+/g, ' ').trim();
+// Uzun cümleleri virgülden böl: nefes alınabilen, telaşsız parçalar
+const softSplit = (t, max = 150) => {
+  if (t.length <= max) return [t];
+  const out = []; let cur = '';
+  for (const part of t.split(/(?<=[,;:])\s+/)) {
+    if (cur && (cur + ' ' + part).length > max) { out.push(cur); cur = part; } else cur = cur ? cur + ' ' + part : part;
+  }
+  if (cur) out.push(cur);
+  return out;
+};
 
 function bulletinScript() {
   const evening = new Date().getHours() >= 15;
@@ -111,8 +127,8 @@ function bulletinScript() {
     const head = i.title.replace(/[.!?…]+$/, '');
     const extra = sum && lc(sum).slice(0, 28) !== lc(head).slice(0, 28) ? sentencesOf(sum).slice(0, 1).join(' ').slice(0, 220) : '';
     const text = l === 'en'
-      ? `Story ${ORD_EN[picks.length] || picks.length + 1}. ${head}. ${extra}${i.storySize > 1 ? ` Reported by ${i.storySize} outlets.` : ''}`
-      : `${ORD_TR[picks.length] || picks.length + 1} haber. ${head}. ${extra}${i.storySize > 1 ? ` Bu haberi ${i.storySize} kaynak yazdı.` : ''}`;
+      ? `${LEAD_EN[picks.length] || 'Next'}, ${speakClean(head)}. ${speakClean(extra)}${i.storySize > 1 ? ` ${i.storySize} outlets are covering it.` : ''}`
+      : `${LEAD_TR[picks.length] || 'Sırada'}, ${speakClean(head)}. ${speakClean(extra)}${i.storySize > 1 ? ` Bu haberi ${i.storySize} kaynak yazdı.` : ''}`;
     const w = text.split(/\s+/).length;
     if (picks.length >= 4 && words + w > 460) break;
     picks.push({ item: i, text, lang: l });
@@ -121,11 +137,12 @@ function bulletinScript() {
     if (picks.length >= 10) break;
   }
   const date = new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' });
-  const intro = { text: `${evening ? 'İyi akşamlar' : 'Günaydın'}. ${date}. İşte ${picks.length} önemli haberle günün bülteni.`, lang: 'tr', idx: -1 };
-  const outro = { text: 'Bülten bu kadar. Yarın görüşmek üzere.', lang: 'tr', idx: picks.length };
+  const intro = { text: `${evening ? 'İyi akşamlar' : 'Günaydın'}. Rahatça arkana yaslan. ${date}. İşte günün ${picks.length} önemli haberi.`, lang: 'tr', idx: -1, gap: 900 };
+  const outro = { text: 'Bülten bu kadar. Dinlediğin için teşekkürler. Güzel bir gün geçir.', lang: 'tr', idx: picks.length, gap: 0 };
   const segs = [intro, ...picks.flatMap((p, idx) => {
-    const parts = p.text.split(/(?<=[.!?])\s+/).filter(Boolean);
-    return parts.map((text) => ({ text, lang: p.lang, idx }));
+    const parts = p.text.split(/(?<=[.!?])\s+/).filter(Boolean).flatMap((x) => softSplit(x));
+    // Cümle arası kısa nefes, haberler arası belirgin duraklama
+    return parts.map((text, k) => ({ text, lang: p.lang, idx, gap: k === parts.length - 1 ? 1000 : 320 }));
   }), outro];
   return { picks, segs, minutes: Math.max(1, Math.round((words + 30) / 150)), evening };
 }
@@ -139,17 +156,31 @@ function openBulletin() {
   }
   const { picks, segs, minutes, evening } = bulletinScript();
   if (picks.length < 3) { body.innerHTML = '<div class="quiz-end"><span class="big-emoji">📻</span><h3 class="small">Bülten için haber az</h3><p>Biraz sonra tekrar dene.</p></div>'; return; }
-  let si = 0, playing = false, tok = 0, rate = 1, voices = [];
+  let si = 0, playing = false, tok = 0, rate = store.get('haber.blrate', 0.95), voices = [], gapT = 0;
   const loadVoices = () => { voices = synth.getVoices(); };
   loadVoices(); synth.addEventListener?.('voiceschanged', loadVoices);
+  // En insansı sesi seç: doğal/sinirsel ve gelişmiş sesler önde, robotik "compact" sesler sonda
+  const vscore = (v) => {
+    const n = v.name || '';
+    let s = 0;
+    if (/natural|neural|online|wavenet|studio/i.test(n)) s += 60;
+    if (/premium|enhanced|gelişmiş|genişletilmiş|siri/i.test(n)) s += 45;
+    if (/google/i.test(n)) s += 25;
+    if (/yelda|emel|filiz|seda|ahmet|jenny|aria|samantha|ava|allison|zoe|serena|karen/i.test(n)) s += 15;
+    if (/compact|espeak|novelty|bad news|bells|boing|cellos|whisper|zarvox|trinoids|organ|hysterical|junior|ralph|fred/i.test(n)) s -= 80;
+    if (v.default) s += 2;
+    return s;
+  };
+  const voiceList = (lang) => voices.filter((v) => v.lang.replace('_', '-').toLowerCase().startsWith(lang)).sort((a, b) => vscore(b) - vscore(a));
+  let voiceName = store.get('haber.blvoice', null);
   const voiceFor = (lang) => {
-    const mine = voices.filter((v) => v.lang.replace('_', '-').toLowerCase().startsWith(lang));
-    return mine.find((v) => v.localService) || mine[0] || null;
+    const list = voiceList(lang);
+    return (lang === 'tr' && voiceName && list.find((v) => v.name === voiceName)) || list[0] || null;
   };
   body.innerHTML = `
     <div class="bl-hero"><button class="bl-play" id="bl-play" aria-label="Oynat"><svg viewBox="0 0 24 24" class="i-play"><path d="M8 5v14l11-7z"/></svg><svg viewBox="0 0 24 24" class="i-pause"><path d="M7 5v14M17 5v14"/></svg></button>
       <div class="bl-meta"><b>${evening ? '🌙 Akşam' : '☀️ Sabah'} bülteni</b><small id="bl-sub">≈ ${minutes} dakika · ${picks.length} haber</small></div>
-      <div class="bl-ctl"><button class="icon-btn" id="bl-prev" aria-label="Önceki haber">⏮</button><button class="icon-btn" id="bl-next" aria-label="Sonraki haber">⏭</button><button class="sort-btn" id="bl-rate" title="Hız">1×</button></div></div>
+      <div class="bl-ctl"><button class="icon-btn" id="bl-prev" aria-label="Önceki haber">⏮</button><button class="icon-btn" id="bl-next" aria-label="Sonraki haber">⏭</button><button class="sort-btn" id="bl-voice" title="Sesi değiştir">🎙</button><button class="sort-btn" id="bl-rate" title="Hız">${rate}×</button></div></div>
     <div class="bl-bar"><i id="bl-fill"></i></div>
     <ol class="bl-list" id="bl-list">${picks.map((p, k) => `<li><button class="bl-item" data-k="${k}"><span class="bl-n">${k + 1}</span><span><b>${esc(p.item.title)}</b><small>${esc(p.item.source)}${p.item.storySize > 1 ? ` · ${p.item.storySize} kaynak` : ''}</small></span></button></li>`).join('')}</ol>`;
   const playBtn = el.querySelector('#bl-play');
@@ -161,7 +192,7 @@ function openBulletin() {
     el.querySelectorAll('.bl-item').forEach((b, k) => b.classList.toggle('on', k === cur));
     el.querySelector('#bl-sub').textContent = si >= segs.length ? 'Bitti' : playing ? 'Okunuyor…' : `≈ ${minutes} dakika · ${picks.length} haber`;
   }
-  function stop() { tok++; try { synth.cancel(); } catch {} }
+  function stop() { tok++; clearTimeout(gapT); try { synth.cancel(); } catch {} }
   function speak() {
     if (!playing) return;
     if (si >= segs.length) { playing = false; si = segs.length; ui(); stats.bulletins = (stats.bulletins || 0) + 1; saveStats(); confetti(40); return; }
@@ -169,8 +200,9 @@ function openBulletin() {
     const u = new SpeechSynthesisUtterance(seg.text);
     u.lang = seg.lang === 'en' ? 'en-US' : 'tr-TR';
     const v = voiceFor(seg.lang); if (v) u.voice = v;
-    u.rate = rate;
-    u.onend = () => { if (my === tok && playing) { si++; speak(); } };
+    u.rate = rate; u.pitch = 1; u.volume = 1;
+    // Duraklama süresi kadar nefes aldıktan sonra sıradaki cümle
+    u.onend = () => { if (my === tok && playing) { si++; clearTimeout(gapT); gapT = setTimeout(() => { if (my === tok && playing) speak(); }, seg.gap ?? 300); } };
     u.onerror = (e) => { if (my !== tok || /interrupted|canceled/.test(e.error || '')) return; playing = false; ui(); toast('Ses çalınamadı'); };
     synth.speak(u);
     ui();
@@ -189,7 +221,16 @@ function openBulletin() {
   playBtn.onclick = toggle;
   el.querySelector('#bl-prev').onclick = () => { const cur = segs[Math.min(si, segs.length - 1)].idx; jump(Math.max(0, cur - 1 < 0 ? 0 : cur - 1)); };
   el.querySelector('#bl-next').onclick = () => { const cur = segs[Math.min(si, segs.length - 1)].idx; jump(Math.min(picks.length, cur + 1)); };
-  el.querySelector('#bl-rate').onclick = (e) => { rate = rate === 1 ? 1.2 : rate === 1.2 ? 0.85 : 1; e.currentTarget.textContent = `${rate}×`; if (playing) { stop(); speak(); } };
+  el.querySelector('#bl-rate').onclick = (e) => { rate = rate === 0.95 ? 1.1 : rate === 1.1 ? 0.82 : 0.95; store.set('haber.blrate', rate); e.currentTarget.textContent = `${rate}×`; if (playing) { stop(); speak(); } };
+  // Türkçe sesler arasında dolaş (en iyisinden başlar)
+  el.querySelector('#bl-voice').onclick = () => {
+    const list = voiceList('tr');
+    if (list.length < 2) { toast(list[0] ? `Tek Türkçe ses var: ${list[0].name}` : 'Bu cihazda Türkçe ses bulunamadı'); return; }
+    const cur = list.findIndex((v) => v.name === (voiceFor('tr') || {}).name);
+    voiceName = list[(cur + 1) % list.length].name; store.set('haber.blvoice', voiceName);
+    toast(`Ses: ${voiceName}`); haptic();
+    if (playing) { stop(); speak(); }
+  };
   el.querySelector('#bl-list').onclick = (e) => { const b = e.target.closest('[data-k]'); if (b) jump(+b.dataset.k); };
   el.addEventListener('closed', () => { playing = false; stop(); synth.removeEventListener?.('voiceschanged', loadVoices); });
   ui();

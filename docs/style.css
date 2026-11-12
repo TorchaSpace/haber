@@ -1315,3 +1315,17 @@ h1, h2, h3, .card h3 { text-wrap: balance; }
   .skeleton, .status { animation: none; }
   .net-bar { transition: none; }
 }
+
+/* ---------- İlk açılış: akıcı seçim ---------- */
+/* Perde arkasındaki sonsuz animasyonlar durur, GPU yalnızca seçim ekranına çalışır */
+body.onboarding .brand-dot::after, body.onboarding .shimmer, body.onboarding .chrome, body.onboarding .feed { animation: none !important; }
+body.onboarding .chrome, body.onboarding .feed, body.onboarding .greeting { visibility: hidden; }
+.onboard-emoji { animation-duration: 4s !important; }
+.onboard .chip { contain: layout paint; transition: background .25s, color .25s, transform .3s var(--spring); }
+.onboard .chip.on { animation: none; box-shadow: none; transform: scale(1.03); }
+.onboard-card { will-change: opacity, transform; }
+.onboard-card:not([hidden]) { animation: obIn .5s var(--smooth) both; }
+.onboard-card > * { animation-duration: .5s; }
+@keyframes obIn { from { opacity: 0; transform: translateY(14px) scale(.99); } }
+#onboard-tags { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+#onboard-tags .chip { animation: none; }
