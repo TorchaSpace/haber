@@ -26,6 +26,11 @@ Dünyadaki haberleri tek çatı altında toplayan, kişisel zevklerine göre fil
   - **Kelime avı:** başlıktaki önemli terimi harflerle tamamla, kısa Vikipedi açıklamasıyla öğren, kelime defterine ekle
   - **Görüş haritası:** okuduğun kaynaklar yerel ↔ küresel ve iyimser ↔ kötümser eksenlerinde; dengeleyecek farklı bir göz önerisi
   - **Konu tuvali:** ilgi alanların sürüklenebilir kartlarda, aynı haberlerde buluşan konular çizgiyle bağlı
+  - **Gelecek takvimi:** haberlerde geçen "yarın", "cuma günü", "18 Kasım" gibi tarihlerden önümüzdeki günlerin olayları, ilgi alanına göre
+  - **Sesli bülten:** günün önemli haberleri ≈3 dakikalık bülten olarak sesli okunur (cihazın konuşma motoru)
+  - **Ruh hali:** sakin, merak ya da enerji seç; liste tona göre dizilir
+  - **Günün kapanış notu:** o gün okuduklarından üç cümlelik kişisel not, arşivlenebilir (`labs2.js`)
+  - **Haber sohbeti:** bir habere soru sor; yanıtlar yalnızca haberin metninden ve diğer kaynaklardan derlenir, kaynakları gösterilir
 - **Menü çubuğu:** Mac menü çubuğunda şu an en çok konuşulan haberler döner
 - Kategori ve dil tercihine göre filtreleme
 - İlgi alanı anahtar kelimeleri: eşleşen haberler en üstte, vurgulu gösterilir

@@ -437,8 +437,18 @@ function openFun() {
   // Keşif atölyesi (labs.js): beş mekanik, her biri tek dokunuşla açılır
   if (window.LABS) {
     const seen = new Set(store.get('haber.labsSeen', []));
-    pop.insertAdjacentHTML('afterbegin', '<div class="fun-sec">Her gün</div>');
-    pop.insertAdjacentHTML('beforeend', '<div class="fun-sec">Keşif atölyesi</div>' + window.LABS.map((l, k) => `<button class="fun-tile lab" data-lab="${l.id}" style="animation-delay:${(k + 6) * 35}ms"><span>${l.emoji}</span><b>${l.title}</b><small>${esc(l.sub())}</small>${seen.has(l.id) ? '' : '<em class="new-tag">Yeni</em>'}</button>`).join(''));
+    pop.insertAdjacentHTML('afterbegin', '<div class="fun-sec">Gazete ve oyunlar</div>');
+    let group = '';
+    const sizes = {};
+    window.LABS.forEach((l) => { sizes[l.group] = (sizes[l.group] || 0) + 1; });
+    const done = {};
+    pop.insertAdjacentHTML('beforeend', window.LABS.map((l, k) => {
+      const head = l.group && l.group !== group ? `<div class="fun-sec">${l.group}</div>` : '';
+      group = l.group || group;
+      done[l.group] = (done[l.group] || 0) + 1;
+      const wide = sizes[l.group] % 2 && done[l.group] === sizes[l.group] ? ' wide' : '';
+      return `${head}<button class="fun-tile lab${wide}" data-lab="${l.id}" style="animation-delay:${(k + 6) * 30}ms"><span>${l.emoji}</span><b>${l.title}</b><small>${esc(l.sub())}</small>${seen.has(l.id) ? '' : '<em class="new-tag">Yeni</em>'}</button>`;
+    }).join(''));
   }
 }
 $('open-fun').onclick = (e) => { e.stopPropagation(); $('open-fun').classList.remove('has-new'); openFun(); };
