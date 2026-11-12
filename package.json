@@ -10,7 +10,8 @@
     "app": "electron .",
     "build:mac": "electron-builder --mac --dir && rm -rf Haber.app && cp -R dist/mac-arm64/Haber.app ./Haber.app && codesign --force --deep -s - Haber.app",
     "phone": "HOST=0.0.0.0 node src/server.js",
-    "ios": "cd ios-app && npm install && npm run sync && npm run open"
+    "ios": "cd ios-app && npm install && npm run sync && npm run open",
+    "web": "cd ios-app && npm install && OUT=../docs node build-www.mjs"
   },
   "engines": {
     "node": ">=18"

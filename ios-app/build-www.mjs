@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const www = path.join(here, 'www');
+const www = process.env.OUT ? path.resolve(process.env.OUT) : path.join(here, 'www');
 const pub = path.join(here, '..', 'public');
 const src = path.join(here, '..', 'src');
 

@@ -10,6 +10,17 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), { status
 const CACHE_MS = 10 * 60 * 1000;
 let cache = { at: 0, items: [] };
 
+// Uygulamada (Capacitor) CORS yok; tarayıcıda hızlı deneme için herkese açık CORS aracıları kullanılır
+const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const PROXIES = [(u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u), (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u)];
+async function get(url, ms) {
+  if (isNative) return withTimeout(fetch(url), ms);
+  let last;
+  for (const p of PROXIES) {
+    try { const r = await withTimeout(fetch(p(url)), ms); if (r.ok) return r; last = new Error(r.status); } catch (e) { last = e; }
+  }
+  throw last;
+}
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('zaman aşımı')), ms))]);
 const text = (el, sel) => el.getElementsByTagName(sel)[0]?.textContent?.trim() || '';
 const plain = (html) => new DOMParser().parseFromString(html || '', 'text/html').body.textContent.replace(/\s+/g, ' ').trim();
@@ -50,7 +61,7 @@ function parseFeed(xml, src) {
 
 async function fetchSource(src) {
   try {
-    const res = await withTimeout(fetch(src.url), 12000);
+    const res = await get(src.url, 12000);
     if (!res.ok) throw new Error(res.status);
     return parseFeed(await res.text(), src);
   } catch (err) {
@@ -73,7 +84,7 @@ async function getAllNews(force) {
 }
 
 async function getArticle(url) {
-  const res = await withTimeout(fetch(url), 15000);
+  const res = await get(url, 15000);
   if (!res.ok) throw new Error(`Kaynak ${res.status} döndürdü`);
   const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
   const abs = (u) => { try { return new URL(u, url).href; } catch { return u; } };
