@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: haber
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev --ignore-scripts
+    startCommand: node src/server.js
+    healthCheckPath: /api/meta
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: NODE_VERSION
+        value: 22

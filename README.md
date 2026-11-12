@@ -86,6 +86,9 @@ public/
 
 ## iPhone
 
+**En kolay yol: yayınla, telefonda adresi aç.** Repo'daki `render.yaml` ile Render'da ücretsiz yayınlanır:
+https://render.com/deploy?repo=https://github.com/TorchaSpace/haber — GitHub ile giriş yap, *Apply* de. Birkaç dakika sonra `https://haber-xxxx.onrender.com` gibi bir adres verir; iPhone Safari'de aç → Paylaş → **Ana Ekrana Ekle**. Mac'in açık olması gerekmez. (Ücretsiz planda uygulama kullanılmayınca uyur, ilk açılış ~30 sn sürer.)
+
 PC/Mac sürümü (Electron ve `npm start`) aynen çalışmaya devam eder. iPhone için iki yol var; ikisi de sunucunun çalıştığı bir adrese bağlanır.
 
 **1) Hızlı yol: ana ekrana ekle (Xcode ve geliştirici hesabı gerekmez)**
