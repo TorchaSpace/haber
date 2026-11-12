@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Haber</title>
+<style>
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0e0e10;color:#f3f3f5;font:16px -apple-system,system-ui,sans-serif;padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom)}
+  main{width:100%;max-width:380px}
+  h1{font-size:2rem;margin:0 0 6px} p{color:#a0a0aa;line-height:1.5}
+  input,button{width:100%;box-sizing:border-box;font-size:16px;padding:14px;border-radius:12px;border:1px solid #333;background:#1a1a1e;color:inherit;margin-top:10px}
+  button{background:#e5484d;border:0;font-weight:600}
+</style></head><body><main>
+<h1>Haber</h1>
+<p>Haber sunucusunun adresini gir. Mac'te <code>npm run phone</code> çalıştırınca terminalde "iPhone için: http://…" adresi çıkar (ya da yayınladığın https adresi).</p>
+<input id="url" type="url" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="http://192.168.1.20:3000" />
+<button id="go">Bağlan</button>
+<p id="err" style="color:#ff8a8a"></p>
+</main>
+<script>
+  const KEY = 'haber.serverUrl', $ = (id) => document.getElementById(id);
+  const saved = localStorage.getItem(KEY);
+  const go = (u) => { location.href = u; };
+  // Adres değiştirmek için: uygulamayı açarken ?reset=1 ya da bu sayfaya dön
+  if (saved && !location.search.includes('reset')) go(saved); else $('url').value = saved || '';
+  $('go').onclick = () => {
+    let u = $('url').value.trim();
+    if (!u) return;
+    if (!/^https?:\/\//.test(u)) u = 'http://' + u;
+    localStorage.setItem(KEY, u.replace(/\/$/, ''));
+    go(u);
+  };
+</script></body></html>

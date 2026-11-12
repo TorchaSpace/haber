@@ -8,7 +8,9 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "app": "electron .",
-    "build:mac": "electron-builder --mac --dir && rm -rf Haber.app && cp -R dist/mac-arm64/Haber.app ./Haber.app && codesign --force --deep -s - Haber.app"
+    "build:mac": "electron-builder --mac --dir && rm -rf Haber.app && cp -R dist/mac-arm64/Haber.app ./Haber.app && codesign --force --deep -s - Haber.app",
+    "phone": "HOST=0.0.0.0 node src/server.js",
+    "ios": "cd ios-app && npm install && npx cap sync ios && npx cap open ios"
   },
   "engines": {
     "node": ">=18"

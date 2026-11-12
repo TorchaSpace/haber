@@ -3,3 +3,6 @@ node_modules/
 .DS_Store
 dist/
 Haber.app/
+ios-app/node_modules/
+ios-app/ios/App/build/
+ios-app/ios/DerivedData/

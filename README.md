@@ -83,3 +83,20 @@ public/
 - [ ] Okunan haberlere göre öğrenen öneri sistemi
 - [ ] Aynı haberin farklı kaynaklardaki versiyonlarını gruplama
 - [ ] Mobil uygulama / PWA, bildirimler
+
+## iPhone
+
+PC/Mac sürümü (Electron ve `npm start`) aynen çalışmaya devam eder. iPhone için iki yol var; ikisi de sunucunun çalıştığı bir adrese bağlanır.
+
+**1) Hızlı yol: ana ekrana ekle (Xcode ve geliştirici hesabı gerekmez)**
+1. Mac'te `npm run phone` çalıştır; terminalde `iPhone için: http://192.168.x.x:3000` yazar.
+2. iPhone aynı Wi-Fi'deyken Safari'de bu adresi aç.
+3. Paylaş düğmesi → **Ana Ekrana Ekle**. Haber, tam ekran uygulama gibi açılır.
+
+**2) Yerel iOS uygulaması (Capacitor, Xcode gerekir)**
+1. `npm run ios` (Mac'te; Xcode kurulu olmalı) → Xcode `ios-app/ios/App` projesini açar.
+2. Xcode'da *App* hedefi → *Signing & Capabilities* → kendi Apple ID'ni (Personal Team) seç.
+3. iPhone'u kabloyla bağla, üstten cihazını seç, ▶ ile çalıştır. (İlk seferde iPhone'da Ayarlar → Genel → VPN ve Aygıt Yönetimi'nden geliştiriciye güven.)
+4. Uygulama açılınca sunucu adresini gir (`npm run phone` çıktısındaki adres). Ücretsiz hesapla uygulama 7 gün sonra süresi dolar; kalıcı/App Store dağıtımı için ücretli Apple Developer hesabı (yıllık 99$) gerekir.
+
+Mac kapalıyken de kullanmak istersen sunucuyu bir yere yayınlayıp (Render, Fly.io vb. `npm start`, `HOST=0.0.0.0`, `PORT`) o https adresini gir.

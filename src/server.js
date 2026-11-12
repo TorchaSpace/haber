@@ -66,6 +66,13 @@ export function startServer(port = 3000, host = '127.0.0.1') {
 
 // Doğrudan çalıştırıldıysa (npm start) 3000 portunda başlat
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  const port = await startServer(Number(process.env.PORT) || 3000);
+  // HOST=0.0.0.0 (ya da `npm run phone`) ile ağdaki cihazlar (iPhone) da bağlanabilir
+  const host = process.env.HOST || '127.0.0.1';
+  const port = await startServer(Number(process.env.PORT) || 3000, host);
   console.log(`Haber çalışıyor: http://localhost:${port}`);
+  if (host === '0.0.0.0') {
+    const { networkInterfaces } = await import('node:os');
+    for (const list of Object.values(networkInterfaces()))
+      for (const n of list || []) if (n.family === 'IPv4' && !n.internal) console.log(`iPhone için: http://${n.address}:${port}`);
+  }
 }

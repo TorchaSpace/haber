@@ -1,0 +1,7 @@
+{
+  "appId": "com.torchaspace.haber",
+  "appName": "Haber",
+  "webDir": "www",
+  "ios": { "contentInset": "never", "backgroundColor": "#0e0e10" },
+  "server": { "allowNavigation": ["*"] }
+}

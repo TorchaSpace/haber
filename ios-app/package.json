@@ -1,0 +1,11 @@
+{
+  "name": "haber-ios",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Haber iPhone uygulaması (Capacitor kabuğu)",
+  "dependencies": {
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/ios": "^7.0.0"
+  }
+}

@@ -919,3 +919,7 @@ button:active, .chip:active, .tab:active { transform: scale(.92); }
 .confetti { position: fixed; inset: 0; z-index: 90; pointer-events: none; overflow: hidden; }
 .confetti i { position: absolute; top: -12px; width: 8px; height: 13px; border-radius: 2px; animation: fall linear forwards; }
 @keyframes fall { to { transform: translate(var(--dx), 105vh) rotate(var(--r)); } }
+
+/* iPhone: çentik ve ana ekran çubuğu için güvenli alanlar */
+body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+input, select, textarea { font-size: max(16px, 1em); } /* iOS'ta odaklanınca yakınlaşmayı önler */
