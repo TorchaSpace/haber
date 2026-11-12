@@ -6,3 +6,5 @@ Haber.app/
 ios-app/node_modules/
 ios-app/ios/App/build/
 ios-app/ios/DerivedData/
+ios-app/www/
+ios-app/ios/App/App/public/

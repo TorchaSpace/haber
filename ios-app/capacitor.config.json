@@ -3,5 +3,5 @@
   "appName": "Haber",
   "webDir": "www",
   "ios": { "contentInset": "never", "backgroundColor": "#0e0e10" },
-  "server": { "allowNavigation": ["*"] }
+  "plugins": { "CapacitorHttp": { "enabled": true } }
 }

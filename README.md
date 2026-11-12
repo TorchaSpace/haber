@@ -86,6 +86,28 @@ public/
 
 ## iPhone
 
+PC/Mac sürümü (Electron ve `npm start`) aynen çalışır. iPhone uygulaması **sunucusuz**: haberleri doğrudan telefon çeker (Capacitor HTTP ile), etiketleme ve hikaye gruplama cihazda yapılır; ayarlar ve kaydedilenler telefonda tutulur.
+
+Kurulum (Mac'te bir kez; Xcode ve ücretsiz Apple ID yeterli):
+1. `git pull` sonra Terminal'de proje klasöründe `npm run ios` → Xcode açılır.
+2. Xcode'da sol üstten **App** → *Signing & Capabilities* → *Team* olarak kendi Apple ID'ni (Personal Team) seç.
+3. iPhone'u kabloyla bağla, üst çubuktan iPhone'unu seç, ▶ düğmesine bas.
+4. İlk seferde iPhone'da Ayarlar → Genel → VPN ve Aygıt Yönetimi → geliştirici → **Güven**.
+
+Ücretsiz Apple ID ile uygulama 7 günde süresi dolar (Xcode'dan tekrar ▶ ile yenilenir); kalıcı kurulum/App Store için ücretli Apple Developer hesabı (yıllık 99$) gerekir. Mac olmadan doğrudan iPhone'a uygulama kurulamaz.
+
+Geliştirme: iOS arayüzü `public/` ile ortaktır; `ios-app/build-www.mjs` onu ve `src/` içindeki ortak mantığı birleştirir, `/api/*` çağrılarını `ios-app/native-api.js` karşılar.
+
+## Yol haritası
+
+- [ ] Daha fazla kaynak ve dil (otomatik çeviri)
+- [ ] Kullanıcı hesabı, tercihlerin sunucuda saklanması
+- [ ] Okunan haberlere göre öğrenen öneri sistemi
+- [ ] Aynı haberin farklı kaynaklardaki versiyonlarını gruplama
+- [ ] Mobil uygulama / PWA, bildirimler
+
+## iPhone
+
 **En kolay yol: yayınla, telefonda adresi aç.** Repo'daki `render.yaml` ile Render'da ücretsiz yayınlanır:
 https://render.com/deploy?repo=https://github.com/TorchaSpace/haber — GitHub ile giriş yap, *Apply* de. Birkaç dakika sonra `https://haber-xxxx.onrender.com` gibi bir adres verir; iPhone Safari'de aç → Paylaş → **Ana Ekrana Ekle**. Mac'in açık olması gerekmez. (Ücretsiz planda uygulama kullanılmayınca uyur, ilk açılış ~30 sn sürer.)
 
