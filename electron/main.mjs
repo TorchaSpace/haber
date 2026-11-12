@@ -2,9 +2,31 @@
 import { app, BrowserWindow, nativeTheme, Menu, Tray, nativeImage } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { startServer } from '../src/server.js';
+import fs from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+
+// Canlı mod: paketlenmiş uygulama, derlendiği repo klasöründeki güncel kodu çalıştırır.
+// Böylece `git pull` sonrası uygulamayı yeniden derlemeye gerek kalmaz; pull anında kendini yeniler.
+function findLiveRepo() {
+  try {
+    const { repo } = JSON.parse(fs.readFileSync(path.join(here, 'repo-path.json'), 'utf8'));
+    if (repo && fs.existsSync(path.join(repo, 'src', 'server.js')) && fs.existsSync(path.join(repo, 'node_modules', 'express'))) return repo;
+  } catch {}
+  return null;
+}
+const liveRepo = app.isPackaged ? findLiveRepo() : null;
+const { startServer } = await import(liveRepo ? pathToFileURL(path.join(liveRepo, 'src', 'server.js')).href : '../src/server.js');
+
+// Repodaki dosyalar değişince (git pull): arayüz değiştiyse sayfayı yenile, sunucu kodu değiştiyse uygulamayı yeniden başlat
+function watchLive() {
+  if (!liveRepo) return;
+  let t1, t2;
+  const watch = (dir, fn) => { try { fs.watch(path.join(liveRepo, dir), { recursive: true }, () => fn()); } catch {} };
+  watch('public', () => { clearTimeout(t1); t1 = setTimeout(() => win?.webContents.reloadIgnoringCache(), 600); });
+  watch('src', () => { clearTimeout(t2); t2 = setTimeout(() => { app.relaunch(); app.exit(0); }, 1500); });
+}
 let win = null;
 let baseUrl = null;
 
@@ -136,7 +158,7 @@ app.whenReady().then(() => {
     },
     { role: 'windowMenu', label: 'Pencere' },
   ]));
-  createWindow().then(createTray);
+  createWindow().then(createTray).then(watchLive);
   app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
 });
 

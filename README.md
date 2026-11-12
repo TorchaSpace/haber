@@ -55,6 +55,8 @@ npm install
 npm run build:mac
 ```
 
+Derleme **bir kez** yeterli: Haber.app derlendiği klasördeki güncel kodu çalıştırır. `git pull` (ya da GitHub Desktop'ta Fetch/Pull) yapınca arayüz değişikliği anında açık pencereye yansır, sunucu kodu değişirse uygulama kendini yeniden başlatır. Yeni bir paket eklenirse bir kez `npm install` gerekir.
+
 Geliştirirken derlemeden denemek için `npm run app`.
 
 ### Web sürümü
